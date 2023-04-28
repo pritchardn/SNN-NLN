@@ -2,6 +2,8 @@
 An SNN implementation of the NLN architecture for RFI detection.
 Based on [this work](https://github.com/mesarcik/RFI-NLN).
 
+The files in src/learning include a variety of scripts to play with tooling speicifcally.
+
 ## Getting Cuda in Shape
 ``sudo update-alternatives --display cuda
 sudo update-alternatives --config cuda``
