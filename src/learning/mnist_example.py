@@ -1,7 +1,10 @@
 """
 A very simple MNIST example (end to end) in order to play with the basics
 """
+from optuna.trial import TrialState
+
 import wandb
+import optuna
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -74,7 +77,7 @@ def train_model(model, dataloader: DataLoader, loss_fn, optimizer):
         if batch % 100 == 0:
             loss, current = loss.item(), (batch + 1) * len(X)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-    return correct/len(dataloader.dataset), running_loss / len(dataloader.dataset)
+    return correct / len(dataloader.dataset), running_loss / len(dataloader.dataset)
 
 
 def test_model(model, dataloader, loss_fn):
@@ -94,21 +97,55 @@ def test_model(model, dataloader, loss_fn):
     return correct, test_loss
 
 
-def train(model, train_data, test_data, loss_fn, optimizer, epochs=5):
+def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer, epochs=5):
+    return_accuracy = 0.0
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
         train_acc, train_loss = train_model(model, train_data, loss_fn, optimizer)
         test_acc, test_loss = test_model(model, test_data, loss_fn)
-        wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss, "test_acc": test_acc})
-    print("Done!")
+        return_accuracy = test_acc
+        wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss,
+                   "test_acc": test_acc})
+        trial.report(test_acc, t)
+        if trial.should_prune():
+            raise optuna.TrialPruned()
+    return return_accuracy
 
 
-if __name__ == '__main__':
-    wandb.init(project="mnist-example", config={"learning_rate": 1e-3, "epochs": 10, "batch_size": 64})
+def run_trial(trial: optuna.Trial):
+    wandb.init(project="mnist-example",
+               config={"learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
+                       "epochs": trial.suggest_int("epochs", 10, 20, 2),
+                       "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
+                       "optimizer": trial.suggest_categorical("optimizer",
+                                                              ["Adam", "SGD", "RMSprop"])})
     train_data, test_data = load_data(batch_size=wandb.config["batch_size"])
     model = create_model()
     loss_fn = nn.CrossEntropyLoss()
     wandb.watch(model, log="all")
-    optimizer = torch.optim.SGD(model.parameters(), lr=wandb.config["learning_rate"])
-    train(model, train_data, test_data, loss_fn, optimizer, epochs=wandb.config["epochs"])
+    optimizer = getattr(torch.optim, wandb.config["optimizer"])(model.parameters(),
+                                                                lr=wandb.config["learning_rate"])
+    accuracy = train(trial, model, train_data, test_data, loss_fn, optimizer, epochs=wandb.config["epochs"])
     wandb.finish()
+    return accuracy
+
+
+if __name__ == '__main__':
+    study = optuna.create_study(direction="maximize")
+    study.optimize(run_trial, n_trials=10)
+    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+
+    print("Study statistics: ")
+    print("  Number of finished trials: ", len(study.trials))
+    print("  Number of pruned trials: ", len(pruned_trials))
+    print("  Number of complete trials: ", len(complete_trials))
+
+    print("Best trial:")
+    trial = study.best_trial
+
+    print("  Value: ", trial.value)
+
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print("    {}: {}".format(key, value))
