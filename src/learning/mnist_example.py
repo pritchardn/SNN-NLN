@@ -1,6 +1,7 @@
 """
 A very simple MNIST example (end to end) in order to play with the basics
 """
+import wandb
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -54,21 +55,26 @@ def create_model():
 def train_model(model, dataloader: DataLoader, loss_fn, optimizer):
     size = len(dataloader.dataset)
     model.train()
+    running_loss = 0.0
+    correct = 0
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to(device), y.to(device)
 
         # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
+        correct += (pred.argmax(1) == y).type(torch.float).sum().item()
 
         # Backpropagation
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        running_loss += loss.item() * len(X)
 
         if batch % 100 == 0:
             loss, current = loss.item(), (batch + 1) * len(X)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+    return correct/len(dataloader.dataset), running_loss / len(dataloader.dataset)
 
 
 def test_model(model, dataloader, loss_fn):
@@ -85,21 +91,24 @@ def test_model(model, dataloader, loss_fn):
     test_loss /= num_batches
     correct /= size
     print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    return correct, test_loss
 
 
 def train(model, train_data, test_data, loss_fn, optimizer, epochs=5):
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train_model(model, train_data, loss_fn, optimizer)
-        test_model(model, test_data, loss_fn)
+        train_acc, train_loss = train_model(model, train_data, loss_fn, optimizer)
+        test_acc, test_loss = test_model(model, test_data, loss_fn)
+        wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss, "test_acc": test_acc})
     print("Done!")
 
 
 if __name__ == '__main__':
-    train_data, test_data = load_data()
-
+    wandb.init(project="mnist-example", config={"learning_rate": 1e-3, "epochs": 10, "batch_size": 64})
+    train_data, test_data = load_data(batch_size=wandb.config["batch_size"])
     model = create_model()
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-
-    train(model, train_data, test_data, loss_fn, optimizer, epochs=10)
+    wandb.watch(model, log="all")
+    optimizer = torch.optim.SGD(model.parameters(), lr=wandb.config["learning_rate"])
+    train(model, train_data, test_data, loss_fn, optimizer, epochs=wandb.config["epochs"])
+    wandb.finish()
