@@ -1,17 +1,17 @@
 """
 A very simple MNIST example (end to end) in order to play with the basics
 """
-from optuna.trial import TrialState
-
-import wandb
 import optuna
 import torch
 import torch.nn as nn
+import wandb
+from optuna.trial import TrialState
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+WANDB_ACTIVE = False
 
 
 class SimpleNetwork(nn.Module):
@@ -104,8 +104,9 @@ def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer,
         train_acc, train_loss = train_model(model, train_data, loss_fn, optimizer)
         test_acc, test_loss = test_model(model, test_data, loss_fn)
         return_accuracy = test_acc
-        wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss,
-                   "test_acc": test_acc})
+        if WANDB_ACTIVE:
+            wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss,
+                       "test_acc": test_acc})
         trial.report(test_acc, t)
         if trial.should_prune():
             raise optuna.TrialPruned()
@@ -113,20 +114,25 @@ def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer,
 
 
 def run_trial(trial: optuna.Trial):
-    wandb.init(project="mnist-example",
-               config={"learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
-                       "epochs": trial.suggest_int("epochs", 10, 20, 2),
-                       "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
-                       "optimizer": trial.suggest_categorical("optimizer",
-                                                              ["Adam", "SGD", "RMSprop"])})
-    train_data, test_data = load_data(batch_size=wandb.config["batch_size"])
+    config_vals = {"learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
+                   "epochs": trial.suggest_int("epochs", 10, 20, 2),
+                   "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
+                   "optimizer": trial.suggest_categorical("optimizer",
+                                                          ["Adam", "SGD", "RMSprop"])}
+    if WANDB_ACTIVE:
+        wandb.init(project="mnist-example",
+                   config=config_vals)
+    train_data, test_data = load_data(batch_size=config_vals["batch_size"])
     model = create_model()
     loss_fn = nn.CrossEntropyLoss()
-    wandb.watch(model, log="all")
-    optimizer = getattr(torch.optim, wandb.config["optimizer"])(model.parameters(),
-                                                                lr=wandb.config["learning_rate"])
-    accuracy = train(trial, model, train_data, test_data, loss_fn, optimizer, epochs=wandb.config["epochs"])
-    wandb.finish()
+    if WANDB_ACTIVE:
+        wandb.watch(model, log="all")
+    optimizer = getattr(torch.optim, config_vals["optimizer"])(model.parameters(),
+                                                               lr=config_vals["learning_rate"])
+    accuracy = train(trial, model, train_data, test_data, loss_fn, optimizer,
+                     epochs=config_vals["epochs"])
+    if WANDB_ACTIVE:
+        wandb.finish()
     return accuracy
 
 
