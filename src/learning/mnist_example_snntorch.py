@@ -166,7 +166,6 @@ def train_model(model, train_data, loss_fn, optimizer, batch_size, dtype):
         loss_val = torch.zeros((1), dtype=dtype, device=device)
         for step in range(model.num_steps):
             loss_val += loss_fn(mem_rec[step], y)
-        running_loss += loss_val.item() * len(x)
         output, _ = model(x.view(batch_size, -1))
         _, idx = output.sum(dim=0).max(1)
         running_accuracy += np.mean((y == idx).detach().cpu().numpy())
@@ -176,30 +175,32 @@ def train_model(model, train_data, loss_fn, optimizer, batch_size, dtype):
         loss_val.backward()
         optimizer.step()
 
+        running_loss += loss_val.item()
+
         if batch % 100 == 0:
             loss, current = loss_val.item(), (batch + 1) * len(x)
             print(f"loss: {loss:>7f}  [{current:>5d}/{len(train_data.dataset):>5d}]")
 
-    return running_accuracy / len(train_data.dataset), running_loss / len(train_data.dataset)
+    return running_accuracy / len(train_data), running_loss / len(train_data)
 
 
 def test_model(model, test_data, loss_fn, batch_size):
-    size = len(test_data.dataset)
-    num_batches = len(test_data)
     model.eval()
-    test_loss, correct = 0, 0
+    running_loss, correct = 0, 0
     with torch.no_grad():
         for x, y in test_data:
             x, y = x.to(device), y.to(device)
             test_spk, test_mem = model(x.view(batch_size, -1))
             test_loss = torch.zeros((1), dtype=dtype, device=device)
             for step in range(model.num_steps):
-                test_loss += loss_fn(test_mem[step], y).item()
+                test_loss += loss_fn(test_mem[step], y)
+            running_loss += test_loss.item()
+
             output, _ = model(x.view(batch_size, -1))
             _, idx = output.sum(dim=0).max(1)
             correct += np.mean((y == idx).detach().cpu().numpy())
-    test_loss = test_loss.detach().cpu().numpy()[0] / num_batches
-    correct /= size
+    test_loss = running_loss/len(test_data)
+    correct /= len(test_data)
     print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     return correct, test_loss
 
