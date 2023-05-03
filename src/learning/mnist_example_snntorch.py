@@ -34,8 +34,8 @@ def load_data(batch_size=64) -> (DataLoader, DataLoader):
         download=True,
         transform=transform
     )
-    train_dataloader = DataLoader(training_data, batch_size=batch_size, drop_last=True)
-    test_dataloader = DataLoader(test_data, batch_size=batch_size, drop_last=True)
+    train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True, drop_last=True)
     return train_dataloader, test_dataloader
 
 
@@ -227,12 +227,16 @@ def run_trial(trial: optuna.Trial):
                    "epochs": trial.suggest_int("epochs", 10, 20, 2),
                    "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
                    "optimizer": trial.suggest_categorical("optimizer",
-                                                          ["Adam", "SGD", "RMSprop"])}
+                                                          ["Adam", "SGD", "RMSprop"]),
+                   "num_hidden": trial.suggest_int("num_hidden", 256, 1024, 256),
+                   "beta": trial.suggest_float("beta", 0.85, 0.99)
+                   }
+    print(config_vals)
     if WANDB_ACTIVE:
         wandb.init(project="mnist-example-snntorch",
                    config=config_vals)
     train_data, test_data = load_data(batch_size=config_vals["batch_size"])
-    model = SimpleNetwork(28 * 28, 1000, 10, 0.95, 25).to(device)
+    model = SimpleNetwork(28 * 28, config_vals["num_hidden"], 10, config_vals["beta"], 25).to(device)
     loss_fn = nn.CrossEntropyLoss()
     if WANDB_ACTIVE:
         wandb.watch(model, log="all")
@@ -247,7 +251,7 @@ def run_trial(trial: optuna.Trial):
 
 if __name__ == '__main__':
     study = optuna.create_study(direction="maximize")
-    study.optimize(run_trial, n_trials=10)
+    study.optimize(run_trial, n_trials=20)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
