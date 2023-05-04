@@ -20,6 +20,10 @@ def load_data(excluded_rfi=None, data_path='data'):
         train_x, train_y, _, _ = np.load(train_file_path, allow_pickle=True)
     train_x[train_x == np.inf] = np.finfo(train_x.dtype).max
     test_x[test_x == np.inf] = np.finfo(test_x.dtype).max
+    train_x = np.moveaxis(train_x, -1, 1)
+    test_x = np.moveaxis(test_x, -1, 1)
+    train_y = np.moveaxis(train_y, -1, 1)
+    test_y = np.moveaxis(test_y, -1, 1)
     test_x = test_x.astype('float32')
     train_x = train_x.astype('float32')
     return train_x, train_y, test_x, test_y, rfi_models

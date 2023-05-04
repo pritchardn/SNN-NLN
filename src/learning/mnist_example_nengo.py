@@ -108,7 +108,7 @@ def run_trial(trial: optuna.Trial):
 
 if __name__ == '__main__':
     study = optuna.create_study(direction="maximize")
-    study.optimize(run_trial, n_trials=2)
+    study.optimize(run_trial, n_trials=20)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
     pruned_out = {}
