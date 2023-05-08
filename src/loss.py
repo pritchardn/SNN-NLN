@@ -18,4 +18,4 @@ def discriminator_loss(x, y, weight):
 
 
 def generator_loss(y, weight):
-    return torch.mean(torch.ones_like(y), y) * weight
+    return torch.mean(y) * weight
