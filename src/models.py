@@ -81,3 +81,6 @@ class Discriminator(nn.Module):
         classification = self.flatten(z)
         output = self.output(classification)
         return z, output
+
+    def build(self, x):
+        tl.build(self.encoder, x)

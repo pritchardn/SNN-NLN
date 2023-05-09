@@ -10,7 +10,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 WANDB_ACTIVE = False
 
 
-def train_step(auto_encoder, discriminator, x):
+def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
     auto_encoder.train()
     discriminator.train()
     x_hat = auto_encoder(x)
@@ -21,6 +21,18 @@ def train_step(auto_encoder, discriminator, x):
     disc_loss = discriminator_loss(real_output[0], fake_output[0], 1)
     gen_loss = generator_loss(fake_output[0], 1)
 
+    ae_optimizer.zero_grad()
+    disc_optimizer.zero_grad()
+    generator_optimizer.zero_grad()
+
+    auto_loss.backward(retain_graph=True)
+    disc_loss.backward(retain_graph=True)
+    gen_loss.backward()
+
+    ae_optimizer.step()
+    disc_optimizer.step()
+    generator_optimizer.step()
+
     return auto_loss, disc_loss, gen_loss
 
 
@@ -28,29 +40,26 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
                 generator_optimizer, epochs):
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-----------")
+        running_ae_loss = 0.0
+        running_disc_loss = 0.0
+        running_gen_loss = 0.0
         for batch, (x, y) in enumerate(train_dataset):
             # x, y = x.to(device), y.to(device)
 
-            ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x)
+            ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x, ae_optimizer,
+                                                      disc_optimizer, generator_optimizer)
+            running_ae_loss += ae_loss.item() * len(x)
+            running_disc_loss += disc_loss.item() * len(x)
+            running_gen_loss += gen_loss.item() * len(x)
             print(f"Batch {batch + 1}\n-----------")
             print(f"Autoencoder loss: {ae_loss}")
             print(f"Discriminator loss: {disc_loss}")
             print(f"Generator loss: {gen_loss}")
             print(f"-----------")
-            if WANDB_ACTIVE:
-                wandb.log({"autoencoder_loss": ae_loss, "discriminator_loss": disc_loss,
-                           "generator_loss": gen_loss})
-            ae_optimizer.zero_grad()
-            disc_optimizer.zero_grad()
-            generator_optimizer.zero_grad()
-
-            ae_loss.backward(retain_graph=True)
-            disc_loss.backward(retain_graph=True)
-            gen_loss.backward()
-
-            ae_optimizer.step()
-            disc_optimizer.step()
-            generator_optimizer.step()
+        if WANDB_ACTIVE:
+            wandb.log({"autoencoder_train_loss": running_ae_loss / len(train_dataset),
+                       "discriminator_train_loss": running_disc_loss / len(train_dataset),
+                       "generator_train_loss": running_gen_loss / len(train_dataset)})
     return 1.0
 
 
@@ -68,6 +77,7 @@ if __name__ == "__main__":
     auto_encoder.build(torch.randn(32, 1, 512, 512))
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
                                   config_vals['num_filters'])
+    discriminator.build(torch.randn(32, 1, 512, 512))
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
                                                                   lr=config_vals['learning_rate'])
