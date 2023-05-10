@@ -4,6 +4,7 @@ import wandb
 from data import load_data, process_into_dataset
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
+from plotting import plot_intermediate_images
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -60,6 +61,8 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
             wandb.log({"autoencoder_train_loss": running_ae_loss / len(train_dataset),
                        "discriminator_train_loss": running_disc_loss / len(train_dataset),
                        "generator_train_loss": running_gen_loss / len(train_dataset)})
+
+        plot_intermediate_images(auto_encoder, train_dataset, t+1, 'DAE', '.')
     return 1.0
 
 
