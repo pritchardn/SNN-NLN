@@ -77,10 +77,8 @@ if __name__ == "__main__":
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
                                config_vals['num_filters'], train_x[0][0].shape)
-    auto_encoder.build(torch.randn(32, 1, 512, 512))
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
                                   config_vals['num_filters'])
-    discriminator.build(torch.randn(32, 1, 512, 512))
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
                                                                   lr=config_vals['learning_rate'])
