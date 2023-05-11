@@ -5,9 +5,7 @@ from data import load_data, process_into_dataset
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
-from config import WANDB_ACTIVE
-
-device = 'cpu' if torch.cuda.is_available() else 'cpu'
+from config import WANDB_ACTIVE, DEVICE
 
 
 def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
@@ -48,7 +46,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         running_disc_loss = 0.0
         running_gen_loss = 0.0
         for batch, (x, y) in enumerate(train_dataset):
-            x, y = x.to(device), y.to(device)
+            x, y = x.to(DEVICE), y.to(DEVICE)
 
             ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x, ae_optimizer,
                                                       disc_optimizer, generator_optimizer)
@@ -80,9 +78,9 @@ if __name__ == "__main__":
     test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'])
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_x[0][0].shape).to(device)
+                               config_vals['num_filters'], train_x[0][0].shape).to(DEVICE)
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
-                                  config_vals['num_filters']).to(device)
+                                  config_vals['num_filters']).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
                                                                   lr=config_vals['learning_rate'])

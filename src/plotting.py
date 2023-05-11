@@ -1,20 +1,17 @@
 import math
 import os
 
-import torch
 import torch.nn as nn
 import wandb
 from matplotlib import pyplot as plt
 from torch.utils.data import TensorDataset
-from config import WANDB_ACTIVE
-
-device = 'cpu' if torch.cuda.is_available() else 'cpu'
+from config import WANDB_ACTIVE, DEVICE
 
 
 def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int,
                              title: str, outputdir: str, batch_size: int):
     for batch, (x, y) in enumerate(dataset):
-        x = x.to(device)
+        x = x.to(DEVICE)
         predictions = auto_encoder(x).cpu().detach().numpy()
         plt.figure(figsize=(10, 10))
         for i in range(batch_size):
