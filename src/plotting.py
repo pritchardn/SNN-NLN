@@ -6,9 +6,9 @@ import torch.nn as nn
 import wandb
 from matplotlib import pyplot as plt
 from torch.utils.data import TensorDataset
-from main import WANDB_ACTIVE
+from config import WANDB_ACTIVE
 
-device = 'gpu' if torch.cuda.is_available() else 'cpu'
+device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
 
 def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int,

@@ -5,10 +5,9 @@ from data import load_data, process_into_dataset
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
+from config import WANDB_ACTIVE
 
-device = 'gpu' if torch.cuda.is_available() else 'cpu'
-
-WANDB_ACTIVE = False
+device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
 
 def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):

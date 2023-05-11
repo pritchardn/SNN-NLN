@@ -12,16 +12,19 @@ class Encoder(nn.Module):
             in_size = 1 if n == 0 else (num_layers - n + 1) * num_filters
             out_size = (num_layers - n) * num_filters
             layers.append((f"conv_{n}", nn.Conv2d(in_size, out_size, 3, 2)))
+            layers.append(("relu_{}".format(n), nn.ReLU()))
             layers.append(("batch_norm_{}".format(n), nn.BatchNorm2d(out_size)))
             layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
         self.cnn = nn.Sequential(OrderedDict(layers))
         self.flatten = nn.Flatten()
         self.linear = nn.LazyLinear(latent_dimension)
+        self.dense_act = nn.ReLU()
 
     def forward(self, x):
         x = self.cnn(x)
         x = self.flatten(x)
         x = self.linear(x)
+        x = self.dense_act(x)
         return x
 
 
@@ -33,21 +36,25 @@ class Decoder(nn.Module):
         self.num_filters = num_filters
         self.in_dim = input_shape[0] // (2 ** num_layers) - 1
         self.linear = nn.Linear(latent_dimension, self.in_dim * self.in_dim * num_filters)
-
+        self.dense_in = nn.ReLU()
         layers = []
         for n in range(num_layers - 1):
             layers.append(("conv_{}".format(n),
                            nn.ConvTranspose2d((n + 1) * num_filters, (n + 2) * num_filters, 3, 2)))
+            layers.append(("relu_{}".format(n), nn.ReLU()))
             layers.append(("batch_norm_{}".format(n), nn.BatchNorm2d((n + 2) * num_filters)))
             layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
         self.cnn = nn.Sequential(OrderedDict(layers))
         self.cnn_output = nn.ConvTranspose2d(num_layers * num_filters, 1, 3, 2, output_padding=1)
+        self.sigmoid_out = nn.Sigmoid()
 
     def forward(self, x):
         x = self.linear(x)
+        x = self.dense_in(x)
         x = x.view(-1, self.num_filters, self.in_dim, self.in_dim)
         x = self.cnn(x)
         x = self.cnn_output(x)
+        x = self.sigmoid_out(x)
         return x
 
 
