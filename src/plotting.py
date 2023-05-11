@@ -14,7 +14,7 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
         x = x.to(DEVICE)
         predictions = auto_encoder(x).cpu().detach().numpy()
         plt.figure(figsize=(10, 10))
-        for i in range(batch_size):
+        for i in range(min(batch_size, 25)):
             sub_range = int(math.sqrt(batch_size))
             plt.subplot(sub_range, sub_range, i + 1)
             if predictions.shape[1] == 1:  # 1 channel only
