@@ -10,9 +10,9 @@ class Encoder(nn.Module):
         layers = []
         for n in range(num_layers):
             in_size = 1 if n == 0 else (num_layers - n + 1) * num_filters
-            layers.append((f"conv_{n}", nn.Conv2d(in_size, (num_layers - n) * num_filters, 3, 2)))
-            layers.append(
-                ("batch_norm_{}".format(n), nn.BatchNorm2d((num_layers - n) * num_filters)))
+            out_size = (num_layers - n) * num_filters
+            layers.append((f"conv_{n}", nn.Conv2d(in_size, out_size, 3, 2)))
+            layers.append(("batch_norm_{}".format(n), nn.BatchNorm2d(out_size)))
             layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
         self.cnn = nn.Sequential(OrderedDict(layers))
         self.flatten = nn.Flatten()
@@ -30,8 +30,9 @@ class Decoder(nn.Module):
     def __init__(self, input_shape: tuple, num_layers: int,
                  num_filters: int, latent_dimension: int):
         super().__init__()
+        self.num_filters = num_filters
         self.in_dim = input_shape[0] // (2 ** num_layers) - 1
-        self.linear = nn.Linear(latent_dimension, self.in_dim * self.in_dim * latent_dimension)
+        self.linear = nn.Linear(latent_dimension, self.in_dim * self.in_dim * num_filters)
 
         layers = []
         for n in range(num_layers - 1):
@@ -44,7 +45,7 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         x = self.linear(x)
-        x = x.view(-1, 32, self.in_dim, self.in_dim)
+        x = x.view(-1, self.num_filters, self.in_dim, self.in_dim)
         x = self.cnn(x)
         x = self.cnn_output(x)
         return x
