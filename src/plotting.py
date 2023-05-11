@@ -1,16 +1,21 @@
 import os
+
+import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
 from torch.utils.data import TensorDataset
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int, title: str,
-                             outputdir: str):
+
+def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int,
+                             title: str, outputdir: str):
     for batch, (x, y) in enumerate(dataset):
+        x = x.to(device)
         predictions = auto_encoder(x).cpu().detach().numpy()
         plt.figure(figsize=(10, 10))
-        for i in range(25):
-            plt.subplot(5, 5, i + 1)
+        for i in range(16):
+            plt.subplot(4, 4, i + 1)
             if predictions.shape[1] == 1:  # 1 channel only
                 plt.imshow(predictions[i, 0, :, :] * 127.5 + 127.5)
 

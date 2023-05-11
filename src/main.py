@@ -26,6 +26,10 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     disc_optimizer.zero_grad()
     generator_optimizer.zero_grad()
 
+    del fake_output
+    del real_output
+    del x_hat
+
     auto_loss.backward(retain_graph=True)
     disc_loss.backward(retain_graph=True)
     gen_loss.backward()
@@ -33,6 +37,7 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     ae_optimizer.step()
     disc_optimizer.step()
     generator_optimizer.step()
+
 
     return auto_loss, disc_loss, gen_loss
 
@@ -45,7 +50,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         running_disc_loss = 0.0
         running_gen_loss = 0.0
         for batch, (x, y) in enumerate(train_dataset):
-            # x, y = x.to(device), y.to(device)
+            x, y = x.to(device), y.to(device)
 
             ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x, ae_optimizer,
                                                       disc_optimizer, generator_optimizer)
@@ -67,7 +72,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 32, 'epochs': 15, 'learning_rate': 1e-3, 'optimizer': 'Adam',
+    config_vals = {'batch_size': 16, 'epochs': 15, 'learning_rate': 1e-3, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
@@ -76,9 +81,9 @@ if __name__ == "__main__":
     test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'])
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_x[0][0].shape)
+                               config_vals['num_filters'], train_x[0][0].shape).to(device)
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
-                                  config_vals['num_filters'])
+                                  config_vals['num_filters']).to(device)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
                                                                   lr=config_vals['learning_rate'])
