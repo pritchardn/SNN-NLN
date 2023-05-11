@@ -6,7 +6,7 @@ from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
 WANDB_ACTIVE = False
 
@@ -38,7 +38,6 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     disc_optimizer.step()
     generator_optimizer.step()
 
-
     return auto_loss, disc_loss, gen_loss
 
 
@@ -67,7 +66,8 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
                        "discriminator_train_loss": running_disc_loss / len(train_dataset),
                        "generator_train_loss": running_gen_loss / len(train_dataset)})
 
-        plot_intermediate_images(auto_encoder, train_dataset, t+1, 'DAE', '.')
+        plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', '.',
+                                 train_dataset.batch_size)
     return 1.0
 
 
