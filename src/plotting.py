@@ -31,5 +31,5 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
         plt.savefig(plot_filename)
         if WANDB_ACTIVE:
             wandb.log({'example-reconstruction': wandb.Image(plot_filename)})
-        plt.clf()
+        plt.close('all')
         break
