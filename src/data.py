@@ -5,6 +5,14 @@ import torch
 from torch.utils.data import TensorDataset
 
 
+def limit_entries(image_data, masks, limit: int):
+    if limit is not None:
+        indx = np.random.permutation(len(image_data))[:limit]
+        image_data = image_data[indx]
+        masks = masks[indx]
+    return image_data, masks
+
+
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
         rfi_models = []
@@ -29,6 +37,7 @@ def load_data(excluded_rfi=None, data_path='data'):
     return train_x, train_y, test_x, test_y, rfi_models
 
 
-def process_into_dataset(x_data, y_data, batch_size, shuffle=True):
+def process_into_dataset(x_data, y_data, batch_size, shuffle=True, limit=None):
+    x_data, y_data = limit_entries(x_data, y_data, limit)
     dset = TensorDataset(torch.from_numpy(x_data), torch.from_numpy(y_data))
     return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
