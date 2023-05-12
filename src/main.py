@@ -69,13 +69,15 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 16, 'epochs': 15, 'learning_rate': 1e-3, 'optimizer': 'Adam',
+    config_vals = {'batch_size': 16, 'epochs': 50, 'learning_rate': 1e-3, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
     train_x, train_y, test_x, test_y, rfi_models = load_data()
-    train_dataset = process_into_dataset(train_x, train_y, batch_size=config_vals['batch_size'])
-    test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'])
+    train_dataset = process_into_dataset(train_x, train_y, batch_size=config_vals['batch_size'],
+                                         mode='HERA', threshold=10)
+    test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
+                                        mode='HERA', threshold=10)
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
                                config_vals['num_filters'], train_x[0][0].shape).to(DEVICE)

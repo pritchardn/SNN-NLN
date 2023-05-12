@@ -1,8 +1,9 @@
 import os
-
+import aoflagger as aof
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset
+from tqdm import tqdm
 
 
 def limit_entries(image_data, masks, limit: int):
@@ -22,6 +23,32 @@ def clip_data(image_data, masks):
     return image_data
 
 
+def flag_data(image_data, threshold: int = None, mode="HERA"):
+    mask = None
+    if threshold is not None:
+        mask = np.empty(image_data[..., 0].shape, dtype=bool)
+
+        aoflagger = aof.AOFlagger()
+        strategy = None
+        if mode == 'HERA':
+            strategy = aoflagger.load_strategy_file(
+                f'data{os.sep}flagging{os.sep}hera_{threshold}.lua')
+        elif mode == 'LOFAR':
+            strategy = aoflagger.load_strategy_file(
+                f'data{os.sep}flagging{os.sep}lofar-default-{threshold}.lua')
+        if not strategy:
+            return None
+        # LOAD data into AOFlagger structure
+        for indx in tqdm(range(len(image_data))):
+            _data = aoflagger.make_image_set(image_data.shape[1], image_data.shape[2], 1)
+            _data.set_image_buffer(0, image_data[indx, ..., 0])  # Real values
+
+            flags = strategy.run(_data)
+            flag_mask = flags.get_buffer()
+            mask[indx, ...] = flag_mask
+    return mask
+
+
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
         rfi_models = []
@@ -37,17 +64,18 @@ def load_data(excluded_rfi=None, data_path='data'):
         train_x, train_y, _, _ = np.load(train_file_path, allow_pickle=True)
     train_x[train_x == np.inf] = np.finfo(train_x.dtype).max
     test_x[test_x == np.inf] = np.finfo(test_x.dtype).max
-    train_x = np.moveaxis(train_x, -1, 1)
-    test_x = np.moveaxis(test_x, -1, 1)
-    train_y = np.moveaxis(train_y, -1, 1)
-    test_y = np.moveaxis(test_y, -1, 1)
     test_x = test_x.astype('float32')
     train_x = train_x.astype('float32')
     return train_x, train_y, test_x, test_y, rfi_models
 
 
-def process_into_dataset(x_data, y_data, batch_size, shuffle=True, limit=None):
+def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None):
     x_data, y_data = limit_entries(x_data, y_data, limit)
+    masks = flag_data(x_data, threshold, mode)
+    if masks is not None:
+        y_data = np.expand_dims(masks, axis=-1)
     x_data = clip_data(x_data, y_data)
+    x_data = np.moveaxis(x_data, -1, 1)
+    y_data = np.moveaxis(y_data, -1, 1)
     dset = TensorDataset(torch.from_numpy(x_data), torch.from_numpy(y_data))
     return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
