@@ -13,6 +13,15 @@ def limit_entries(image_data, masks, limit: int):
     return image_data, masks
 
 
+def clip_data(image_data, masks):
+    _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(image_data[np.invert(masks)])
+    _min = np.absolute(np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)]))
+    image_data = np.clip(image_data, _min, _max)
+    image_data = np.log(image_data)
+    image_data = (image_data - _min) / (_max - _min)
+    return image_data
+
+
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
         rfi_models = []
@@ -39,5 +48,6 @@ def load_data(excluded_rfi=None, data_path='data'):
 
 def process_into_dataset(x_data, y_data, batch_size, shuffle=True, limit=None):
     x_data, y_data = limit_entries(x_data, y_data, limit)
+    x_data = clip_data(x_data, y_data)
     dset = TensorDataset(torch.from_numpy(x_data), torch.from_numpy(y_data))
     return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
