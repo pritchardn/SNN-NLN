@@ -1,7 +1,10 @@
+import math
 import os
+
 import aoflagger as aof
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
 
@@ -49,6 +52,25 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
     return mask
 
 
+def extract_patches(x: torch.Tensor, kernel_size: int, stride: int, batch_size):
+    b, c, h, w = x.shape
+    scaling_factor = (h // kernel_size) ** 2
+    input_start, input_end = 0, batch_size
+    output_start, output_end = 0, batch_size * scaling_factor
+    output = torch.FloatTensor(b * scaling_factor, c, kernel_size, kernel_size)
+    for i in range(0, len(x), batch_size):
+        x_sub = x[input_start:input_end]
+        x_sub = F.pad(x_sub, (1, 1, 1, 1))
+        patches = x_sub.unfold(2, kernel_size, stride).unfold(3, kernel_size, stride)
+        patches = patches.permute(2, 3, 0, 1, 4, 5).reshape(-1, c, kernel_size, kernel_size)
+        output[output_start:output_end] = patches
+        input_start = input_end
+        input_end += batch_size
+        output_start = output_end
+        output_end += batch_size * scaling_factor
+    return output
+
+
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
         rfi_models = []
@@ -69,7 +91,8 @@ def load_data(excluded_rfi=None, data_path='data'):
     return train_x, train_y, test_x, test_y, rfi_models
 
 
-def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None):
+def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None,
+                         patch_size=None, stride=None):
     x_data, y_data = limit_entries(x_data, y_data, limit)
     masks = flag_data(x_data, threshold, mode)
     if masks is not None:
@@ -77,5 +100,10 @@ def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=N
     x_data = clip_data(x_data, y_data)
     x_data = np.moveaxis(x_data, -1, 1)
     y_data = np.moveaxis(y_data, -1, 1)
-    dset = TensorDataset(torch.from_numpy(x_data), torch.from_numpy(y_data))
+    x_data = torch.from_numpy(x_data)
+    y_data = torch.from_numpy(y_data)
+    if patch_size is not None and stride is not None:
+        x_data = extract_patches(x_data, patch_size, stride, batch_size)
+        y_data = extract_patches(y_data, patch_size, stride, batch_size)
+    dset = TensorDataset(x_data, y_data)
     return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)

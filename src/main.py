@@ -1,11 +1,11 @@
 import torch
 import wandb
 
+from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
-from config import WANDB_ACTIVE, DEVICE
 
 
 def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
@@ -53,11 +53,6 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
             running_ae_loss += ae_loss.item() * len(x)
             running_disc_loss += disc_loss.item() * len(x)
             running_gen_loss += gen_loss.item() * len(x)
-            print(f"Batch {batch + 1}\n-----------")
-            print(f"Autoencoder loss: {ae_loss}")
-            print(f"Discriminator loss: {disc_loss}")
-            print(f"Generator loss: {gen_loss}")
-            print(f"-----------")
         if WANDB_ACTIVE:
             wandb.log({"autoencoder_train_loss": running_ae_loss / len(train_dataset),
                        "discriminator_train_loss": running_disc_loss / len(train_dataset),
@@ -69,18 +64,23 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 16, 'epochs': 50, 'learning_rate': 1e-3, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32}
+    config_vals = {'batch_size': 64, 'epochs': 50, 'learning_rate': 1e-3, 'optimizer': 'Adam',
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': None}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
     train_x, train_y, test_x, test_y, rfi_models = load_data()
     train_dataset = process_into_dataset(train_x, train_y, batch_size=config_vals['batch_size'],
-                                         mode='HERA', threshold=10)
+                                         mode='HERA', threshold=config_vals['threshold'],
+                                         patch_size=config_vals['patch_size'],
+                                         stride=config_vals['patch_stride'])
     test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
-                                        mode='HERA', threshold=10)
+                                        mode='HERA', threshold=config_vals['threshold'],
+                                        patch_size=config_vals['patch_size'],
+                                        stride=config_vals['patch_stride'])
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_x[0][0].shape).to(DEVICE)
+                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(DEVICE)
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
                                   config_vals['num_filters']).to(DEVICE)
     # Create optimizer

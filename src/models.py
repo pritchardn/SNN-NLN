@@ -34,7 +34,7 @@ class Decoder(nn.Module):
                  num_filters: int, latent_dimension: int):
         super().__init__()
         self.num_filters = num_filters
-        self.in_dim = input_shape[0] // (2 ** num_layers) - 1
+        self.in_dim = input_shape[-1] // (2 ** num_layers) - 1
         self.linear = nn.Linear(latent_dimension, self.in_dim * self.in_dim * num_filters)
         self.dense_in = nn.ReLU()
         layers = []
