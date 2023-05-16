@@ -3,6 +3,7 @@ import os
 import aoflagger as aof
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
@@ -69,6 +70,40 @@ def extract_patches(x: torch.Tensor, kernel_size: int, stride: int, batch_size):
         output_end += batch_size * scaling_factor
     return output
 
+
+def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
+    # t = images.transpose(0, 1, 3, 2)
+    n_patches = original_size // kernel_size
+    recon = np.empty(
+        [images.shape[0] // n_patches ** 2, images.shape[1], kernel_size * n_patches, kernel_size * n_patches])
+
+    start, counter, indx, b = 0, 0, 0, []
+
+    for i in range(n_patches, images.shape[0] + 1, n_patches):
+        agglom = np.stack(images[start:i, ...], axis=0)
+        b.append(np.reshape(agglom,
+                            (1, kernel_size, n_patches * kernel_size)))
+        start = i
+        counter += 1
+        if counter == n_patches:
+            recon[indx, ...] = np.hstack(b)
+            indx += 1
+            counter, b = 0, []
+
+    return recon.transpose(0, 1, 3, 2)
+
+
+def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_size: int):
+    n_patches = original_size // patch_size
+    recon = np.empty([images.shape[0] // n_patches ** 2, n_patches ** 2])
+
+    start, end, labels_recon = 0, n_patches ** 2, []
+
+    for j, i in enumerate(range(0, images.shape[0], n_patches ** 2)):
+        recon[j, ...] = images[start:end, ...]
+        start = end
+        end += n_patches ** 2
+    return recon
 
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
