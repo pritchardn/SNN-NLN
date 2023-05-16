@@ -3,6 +3,7 @@ import wandb
 
 from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
+from evaluation import evaluate_model
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
@@ -64,8 +65,8 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 50, 'learning_rate': 1e-3, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32,
+    config_vals = {'batch_size': 64, 'epochs': 1, 'learning_rate': 1e-3, 'optimizer': 'Adam',
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': None}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
@@ -80,7 +81,8 @@ if __name__ == "__main__":
                                         stride=config_vals['patch_stride'])
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(DEVICE)
+                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(
+        DEVICE)
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
                                   config_vals['num_filters']).to(DEVICE)
     # Create optimizer
@@ -95,7 +97,11 @@ if __name__ == "__main__":
     accuracy = train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_optimizer,
                            generator_optimizer, config_vals['epochs'])
     # Test model
-
+    for neighbour in range(config_vals['neighbours']):
+        evaluate_model(auto_encoder, train_dataset, test_y, test_dataset,
+                       config_vals.get('neighbours'), neighbour, config_vals.get('batch_size'),
+                       config_vals.get('latent_dimension'),
+                       train_x[0].shape[0], config_vals.get('patch_size'))
     # Save model
     if WANDB_ACTIVE:
         wandb.finish()
