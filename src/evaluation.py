@@ -1,7 +1,9 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch.utils.data
 import faiss
+import json
 from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from torch import nn
 
@@ -27,12 +29,12 @@ def infer(model: nn.Module, dataset: torch.utils.data.DataLoader, batch_size: in
     return output
 
 
-def save_metrics_to_csv(metrics):
-    pass
-
-
-def plot_metrics(metrics):
-    pass
+def save_metrics(ae_metrics: dict, nln_metrics: dict, dist_metrics: dict, model_type: str,
+                 anomaly_type: str, model_name: str):
+    output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
+    os.makedirs(output_filepath, exist_ok=True)
+    with open(os.path.join(output_filepath, "metrics.json"), "w") as f:
+        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f)
 
 
 def plot_final_images(metrics: dict, neighbour: int, model_type: str,
@@ -66,10 +68,10 @@ def plot_final_images(metrics: dict, neighbour: int, model_type: str,
         #                 interpolation='nearest', aspect='auto')
         axs[i, 6].imshow(latent_reconstructed[r, ..., 0].astype(np.float32), vmin=0, vmax=1,
                          interpolation='nearest', aspect='auto')
-    plt.savefig('outputs/{}/{}/{}/neighbours_{}.png'.format(model_type,
-                                                            anomaly_type,
-                                                            model_name,
-                                                            neighbour), dpi=300)
+
+    output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
+    os.makedirs(output_filepath, exist_ok=True)
+    plt.savefig(os.path.join(output_filepath, f"neighbours_{neighbour}.png"), dpi=300)
 
 
 def get_error_dataset(images: torch.utils.data.DataLoader, x_hat: np.ndarray, image_size: int):
@@ -101,7 +103,8 @@ def nln(z, z_query, neighbours):
     return neighbours_dist, indices, neighbour_mask
 
 
-def nln_errors(test_dataset: torch.utils.data.DataLoader, x_hat, x_hat_train, neighbours_idx, neighbour_mask):
+def nln_errors(test_dataset: torch.utils.data.DataLoader, x_hat, x_hat_train, neighbours_idx,
+               neighbour_mask):
     test_images = test_dataset.dataset[:][1].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
     neighbours = x_hat_train[neighbours_idx]
@@ -116,8 +119,8 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
     dists = np.mean(neighbours_dist, axis=tuple(range(1, neighbours_dist.ndim)))
     if patch_size is not None:
         dists = np.array([[d] * patch_size ** 2 for i, d in enumerate(dists)]).reshape(len(dists),
-                                                                                         patch_size,
-                                                                                         patch_size)
+                                                                                       patch_size,
+                                                                                       patch_size)
         dists_recon = reconstruct_patches(np.expand_dims(dists, axis=1), original_size, patch_size)
         return dists_recon
     else:
@@ -126,9 +129,15 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
 
 def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLoader,
                       test_masks_original: np.ndarray,
-                      test_dataset: torch.utils.data.DataLoader, neighbour: int, neighbours: int, batch_size: int,
+                      test_dataset: torch.utils.data.DataLoader, neighbours: int, batch_size: int,
+                      model_name: str, model_type: str, anomaly_type: str,
                       latent_dimension: int, original_size: int, patch_size: int = None,
+
                       ):
+    test_images_recon = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(),
+                                            original_size, patch_size)
+    test_masks_reconstructed = reconstruct_patches(
+        test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size)
     z = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
 
@@ -142,34 +151,40 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
     error_recon = reconstruct_patches(error, original_size, patch_size)
 
     ae_metrics = _calculate_metrics(test_masks_original, error_recon)
+    nln_metrics = {}
+    dist_metrics = {}
+    for neighbour in range(1, neighbours+1):
+        neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbour)
+        nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
 
-    neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
-    nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
-
-    if patch_size:
-        if nln_error.ndim == 4:
-            nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+        if patch_size:
+            if nln_error.ndim == 4:
+                nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+            else:
+                nln_error_recon = reconstruct_latent_patches(nln_error, original_size, patch_size)
         else:
-            nln_error_recon = reconstruct_latent_patches(nln_error, original_size, patch_size)
-    else:
-        nln_error_recon = nln_error
+            nln_error_recon = nln_error
 
-    dists_recon = get_dists(neighbours_dist, original_size, patch_size)
+        dists_recon = get_dists(neighbours_dist, original_size, patch_size)
 
-    nln_metrics = _calculate_metrics(test_masks_original, nln_error_recon)
+        nln_metrics[neighbour] = _calculate_metrics(test_masks_original, nln_error_recon)
 
-    dist_metrics = _calculate_metrics(test_masks_original, dists_recon)
-    test_images_recon = test_dataset.dataset[:][0].cpu().detach().numpy()
-    test_masks_reconstructed = test_dataset.dataset[:][1].cpu().detach().numpy()
-    combined_recon = None
-    plot_final_images(ae_metrics, neighbour, 'DAE', 'MISO', 'DAE', test_images_recon, test_masks_reconstructed, error_recon, nln_error_recon, dists_recon, combined_recon, x_hat_recon)
+        dist_metrics[neighbour] = _calculate_metrics(test_masks_original, dists_recon)
+
+        combined_recon = None
+        plot_final_images(ae_metrics, neighbour, model_type, anomaly_type, model_name,
+                          test_images_recon,
+                          test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
+                          combined_recon, x_hat_recon)
     return ae_metrics, nln_metrics, dist_metrics
 
 
-def evaluate_model(model, train_dataset, test_masks, test_dataset, neighbours, neighbour, batch_size, latent_dimension, original_size,
-                   patch_size):
-    metrics = calculate_metrics(model, train_dataset, test_masks, test_dataset, neighbour, neighbours, batch_size, latent_dimension,
-                                original_size, patch_size)
-    plot_metrics(metrics)
-    save_metrics_to_csv(metrics)
-    return metrics
+def evaluate_model(model, train_dataset, test_masks, test_dataset, neighbours, batch_size,
+                   latent_dimension, original_size, patch_size, model_name, model_type,
+                   anomaly_type):
+    ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, train_dataset, test_masks,
+                                                              test_dataset, neighbours,
+                                                              batch_size, model_name, model_type,
+                                                              anomaly_type, latent_dimension,
+                                                              original_size, patch_size)
+    save_metrics(ae_metrics, nln_metrics, dist_metrics, model_name, model_type, anomaly_type)

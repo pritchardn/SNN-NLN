@@ -61,13 +61,13 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
         plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', '.',
                                  train_dataset.batch_size)
-    return 1.0
+    return 1.0, auto_encoder, discriminator
 
 
 if __name__ == "__main__":
     config_vals = {'batch_size': 64, 'epochs': 1, 'learning_rate': 1e-3, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
-                   'patch_size': 32, 'patch_stride': 32, 'threshold': None}
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 2,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': None, 'anomaly_type': "MISO"}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
     train_x, train_y, test_x, test_y, rfi_models = load_data()
@@ -94,14 +94,14 @@ if __name__ == "__main__":
         auto_encoder.decoder.parameters(),
         lr=config_vals['learning_rate'])
     # Train model
-    accuracy = train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_optimizer,
-                           generator_optimizer, config_vals['epochs'])
+    accuracy, auto_encoder, discriminator = train_model(auto_encoder, discriminator, train_dataset,
+                                                        ae_optimizer, disc_optimizer,
+                                                        generator_optimizer, config_vals['epochs'])
     # Test model
-    for neighbour in range(config_vals['neighbours']):
-        evaluate_model(auto_encoder, train_dataset, test_y, test_dataset,
-                       config_vals.get('neighbours'), neighbour, config_vals.get('batch_size'),
-                       config_vals.get('latent_dimension'),
-                       train_x[0].shape[0], config_vals.get('patch_size'))
+    evaluate_model(auto_encoder, train_dataset, test_y, test_dataset,
+                   config_vals.get('neighbours'), config_vals.get('batch_size'),
+                   config_vals.get('latent_dimension'),
+                   train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE', config_vals.get("anomaly_type"))
     # Save model
     if WANDB_ACTIVE:
         wandb.finish()
