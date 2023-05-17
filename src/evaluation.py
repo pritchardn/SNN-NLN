@@ -64,8 +64,8 @@ def plot_final_images(metrics: dict, neighbour: int, model_type: str,
         axs[i, 4].imshow(distrubtions_reconstructed[r, ..., 0].astype(np.float32),
                          interpolation='nearest',
                          aspect='auto')
-        # axs[i, 5].imshow(combined_reconstructed[r, ..., 0].astype(np.float32), vmin=0, vmax=1,
-        #                 interpolation='nearest', aspect='auto')
+        axs[i, 5].imshow(combined_reconstructed[r, ..., 0].astype(np.float32), vmin=0, vmax=1,
+                         interpolation='nearest', aspect='auto')
         axs[i, 6].imshow(latent_reconstructed[r, ..., 0].astype(np.float32), vmin=0, vmax=1,
                          interpolation='nearest', aspect='auto')
 
@@ -132,7 +132,7 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
                       test_dataset: torch.utils.data.DataLoader, neighbours: int, batch_size: int,
                       model_name: str, model_type: str, anomaly_type: str,
                       latent_dimension: int, original_size: int, patch_size: int = None,
-
+                      dataset='HERA'
                       ):
     test_images_recon = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(),
                                             original_size, patch_size)
@@ -153,6 +153,7 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
     ae_metrics = _calculate_metrics(test_masks_original, error_recon)
     nln_metrics = {}
     dist_metrics = {}
+    combined_metrics = {}
     for neighbour in range(1, neighbours+1):
         neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbour)
         nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
@@ -167,11 +168,22 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
 
         dists_recon = get_dists(neighbours_dist, original_size, patch_size)
 
+        if dataset == 'HERA':
+            combined_recon = nln_error_recon * np.array([d > np.percentile(d, 10) for d in dists_recon])
+        elif dataset == 'LOFAR':
+            combined_recon = np.clip(nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5,
+                                     1.0) * np.array(
+                [d > np.percentile(d, 66) for d in dists_recon]
+            )
+        else:
+            raise ValueError('Dataset not implemented')
+        combined_recon = np.nan_to_num(combined_recon)
+        combined_metrics[neighbour] = _calculate_metrics(test_masks_original, combined_recon)
+
         nln_metrics[neighbour] = _calculate_metrics(test_masks_original, nln_error_recon)
 
         dist_metrics[neighbour] = _calculate_metrics(test_masks_original, dists_recon)
 
-        combined_recon = None
         plot_final_images(ae_metrics, neighbour, model_type, anomaly_type, model_name,
                           test_images_recon,
                           test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
@@ -181,10 +193,10 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
 
 def evaluate_model(model, train_dataset, test_masks, test_dataset, neighbours, batch_size,
                    latent_dimension, original_size, patch_size, model_name, model_type,
-                   anomaly_type):
+                   anomaly_type, dataset):
     ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, train_dataset, test_masks,
                                                               test_dataset, neighbours,
                                                               batch_size, model_name, model_type,
                                                               anomaly_type, latent_dimension,
-                                                              original_size, patch_size)
-    save_metrics(ae_metrics, nln_metrics, dist_metrics, model_name, model_type, anomaly_type)
+                                                              original_size, patch_size, dataset)
+    save_metrics(ae_metrics, nln_metrics, dist_metrics, model_type, anomaly_type, model_name)
