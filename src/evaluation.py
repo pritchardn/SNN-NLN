@@ -151,43 +151,40 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
     error_recon = reconstruct_patches(error, original_size, patch_size)
 
     ae_metrics = _calculate_metrics(test_masks_original, error_recon)
-    nln_metrics = {}
-    dist_metrics = {}
-    combined_metrics = {}
-    for neighbour in range(1, neighbours+1):
-        neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbour)
-        nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
+    neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
+    nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
 
-        if patch_size:
-            if nln_error.ndim == 4:
-                nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
-            else:
-                nln_error_recon = reconstruct_latent_patches(nln_error, original_size, patch_size)
+    if patch_size:
+        if nln_error.ndim == 4:
+            nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
         else:
-            nln_error_recon = nln_error
+            nln_error_recon = reconstruct_latent_patches(nln_error, original_size, patch_size)
+    else:
+        nln_error_recon = nln_error
 
-        dists_recon = get_dists(neighbours_dist, original_size, patch_size)
+    dists_recon = get_dists(neighbours_dist, original_size, patch_size)
 
-        if dataset == 'HERA':
-            combined_recon = nln_error_recon * np.array([d > np.percentile(d, 10) for d in dists_recon])
-        elif dataset == 'LOFAR':
-            combined_recon = np.clip(nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5,
-                                     1.0) * np.array(
-                [d > np.percentile(d, 66) for d in dists_recon]
-            )
-        else:
-            raise ValueError('Dataset not implemented')
-        combined_recon = np.nan_to_num(combined_recon)
-        combined_metrics[neighbour] = _calculate_metrics(test_masks_original, combined_recon)
+    if dataset == 'HERA':
+        combined_recon = nln_error_recon * np.array([d > np.percentile(d, 10) for d in dists_recon])
+    elif dataset == 'LOFAR':
+        combined_recon = np.clip(nln_error_recon,
+                                 nln_error_recon.mean() + nln_error_recon.std() * 5,
+                                 1.0) * np.array(
+            [d > np.percentile(d, 66) for d in dists_recon]
+        )
+    else:
+        raise ValueError('Dataset not implemented')
+    combined_recon = np.nan_to_num(combined_recon)
+    combined_metrics = _calculate_metrics(test_masks_original, combined_recon)
 
-        nln_metrics[neighbour] = _calculate_metrics(test_masks_original, nln_error_recon)
+    nln_metrics = _calculate_metrics(test_masks_original, nln_error_recon)
 
-        dist_metrics[neighbour] = _calculate_metrics(test_masks_original, dists_recon)
+    dist_metrics = _calculate_metrics(test_masks_original, dists_recon)
 
-        plot_final_images(ae_metrics, neighbour, model_type, anomaly_type, model_name,
-                          test_images_recon,
-                          test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
-                          combined_recon, x_hat_recon)
+    plot_final_images(ae_metrics, neighbours, model_type, anomaly_type, model_name,
+                      test_images_recon,
+                      test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
+                      combined_recon, x_hat_recon)
     return ae_metrics, nln_metrics, dist_metrics
 
 

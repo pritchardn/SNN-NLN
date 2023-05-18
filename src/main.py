@@ -65,9 +65,9 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 1, 'learning_rate': 1e-3, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 2,
-                   'patch_size': 32, 'patch_stride': 32, 'threshold': None, 'anomaly_type': "MISO",
+    config_vals = {'batch_size': 64, 'epochs': 100, 'learning_rate': 1e-3, 'optimizer': 'Adam',
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
                    'dataset': 'HERA'}
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
