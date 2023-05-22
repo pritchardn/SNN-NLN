@@ -195,3 +195,19 @@ def evaluate_model(model, test_masks, test_dataset, neighbours, batch_size,
                                                               anomaly_type, latent_dimension,
                                                               original_size, patch_size, dataset)
     save_metrics(ae_metrics, nln_metrics, dist_metrics, model_type, anomaly_type, model_name)
+
+
+def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
+    epochs = [e for e in range(len(ae_history))]
+    plt.figure(figsize=(10, 10))
+    plt.plot(epochs, ae_history, label='ae loss')
+    plt.plot(epochs, disc_history, label='disc loss')
+    plt.plot(epochs, gen_history, label='gen loss')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.tight_layout()
+
+    output_filename = os.path.join(outputdir, 'results', 'loss.png')
+    plt.savefig(output_filename)
+    plt.close('all')
