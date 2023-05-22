@@ -22,7 +22,9 @@ def clip_data(image_data, masks):
     _min = np.absolute(np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)]))
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
-    image_data = (image_data - _min) / (_max - _min)
+    mi, ma = np.min(image_data), np.max(image_data)
+    output = (image_data - mi) / (ma - mi)
+    #  image_data = (image_data - _min) / (_max - _min)
     return image_data
 
 
@@ -57,7 +59,7 @@ def extract_patches(x: torch.Tensor, kernel_size: int, stride: int, batch_size):
     scaling_factor = (h // kernel_size) ** 2
     input_start, input_end = 0, batch_size
     output_start, output_end = 0, batch_size * scaling_factor
-    output = torch.FloatTensor(b * scaling_factor, c, kernel_size, kernel_size)
+    output = torch.Tensor(b * scaling_factor, c, kernel_size, kernel_size)
     for i in range(0, len(x), batch_size):
         x_sub = x[input_start:input_end]
         x_sub = F.pad(x_sub, (1, 1, 1, 1))
@@ -126,12 +128,13 @@ def load_data(excluded_rfi=None, data_path='data'):
 
 
 def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None,
-                         patch_size=None, stride=None):
+                         patch_size=None, stride=None, filter=False):
     x_data, y_data = limit_entries(x_data, y_data, limit)
     masks = flag_data(x_data, threshold, mode)
     if masks is not None:
         y_data = np.expand_dims(masks, axis=-1)
     x_data = clip_data(x_data, y_data)
+    y_data = y_data.astype(bool)
     x_data = np.moveaxis(x_data, -1, 1)
     y_data = np.moveaxis(y_data, -1, 1)
     x_data = torch.from_numpy(x_data)
@@ -139,5 +142,14 @@ def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=N
     if patch_size is not None and stride is not None:
         x_data = extract_patches(x_data, patch_size, stride, batch_size)
         y_data = extract_patches(y_data, patch_size, stride, batch_size)
+    if filter:
+        # I Hate this back and forwards, but hindsight is 20/20
+        x_data = x_data.numpy()
+        y_data = y_data.numpy()
+        z_data = np.invert(np.any(y_data, axis=(1, 2, 3)))
+        x_data = x_data[z_data]
+        y_data = y_data[z_data]
+        x_data = torch.from_numpy(x_data)
+        y_data = torch.from_numpy(y_data)
     dset = TensorDataset(x_data, y_data)
     return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)

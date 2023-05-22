@@ -13,16 +13,12 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     auto_encoder.train()
     discriminator.train()
     x_hat = auto_encoder(x)
-    real_output = discriminator(x)
-    fake_output = discriminator(x_hat)
+    real_output, _ = discriminator(x)
+    fake_output, _ = discriminator(x_hat)
 
     auto_loss = ae_loss(x, x_hat)
-    disc_loss = discriminator_loss(real_output[0], fake_output[0], 1)
-    gen_loss = generator_loss(fake_output[0], 1)
-
-    ae_optimizer.zero_grad()
-    disc_optimizer.zero_grad()
-    generator_optimizer.zero_grad()
+    disc_loss = discriminator_loss(real_output, fake_output[0], 1)
+    gen_loss = generator_loss(fake_output, 1)
 
     del fake_output
     del real_output
@@ -51,6 +47,9 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
             ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x, ae_optimizer,
                                                       disc_optimizer, generator_optimizer)
+            ae_optimizer.zero_grad()
+            disc_optimizer.zero_grad()
+            generator_optimizer.zero_grad()
             running_ae_loss += ae_loss.item() * len(x)
             running_disc_loss += disc_loss.item() * len(x)
             running_gen_loss += gen_loss.item() * len(x)
@@ -58,7 +57,9 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
             wandb.log({"autoencoder_train_loss": running_ae_loss / len(train_dataset),
                        "discriminator_train_loss": running_disc_loss / len(train_dataset),
                        "generator_train_loss": running_gen_loss / len(train_dataset)})
-
+        print("Autoencoder Loss: ", running_ae_loss / len(train_dataset))
+        print("Discriminator Loss: ", running_disc_loss / len(train_dataset))
+        print("Generator Loss: ", running_gen_loss / len(train_dataset))
         plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', '.',
                                  train_dataset.batch_size)
     return 1.0, auto_encoder, discriminator
@@ -75,7 +76,8 @@ if __name__ == "__main__":
     train_dataset = process_into_dataset(train_x, train_y, batch_size=config_vals['batch_size'],
                                          mode='HERA', threshold=config_vals['threshold'],
                                          patch_size=config_vals['patch_size'],
-                                         stride=config_vals['patch_stride'])
+                                         stride=config_vals['patch_stride'],
+                                         filter=True)
     test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
                                         mode='HERA', threshold=config_vals['threshold'],
                                         patch_size=config_vals['patch_size'],
@@ -98,6 +100,8 @@ if __name__ == "__main__":
     accuracy, auto_encoder, discriminator = train_model(auto_encoder, discriminator, train_dataset,
                                                         ae_optimizer, disc_optimizer,
                                                         generator_optimizer, config_vals['epochs'])
+    auto_encoder.eval()
+    discriminator.eval()
     # Test model
     evaluate_model(auto_encoder, train_dataset, test_y, test_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
