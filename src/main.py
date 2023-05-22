@@ -103,7 +103,7 @@ if __name__ == "__main__":
     auto_encoder.eval()
     discriminator.eval()
     # Test model
-    evaluate_model(auto_encoder, train_dataset, test_y, test_dataset,
+    evaluate_model(auto_encoder, test_y, test_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
                    config_vals.get('latent_dimension'),
                    train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE', config_vals.get("anomaly_type"), config_vals.get("dataset"))

@@ -103,11 +103,11 @@ def nln(z, z_query, neighbours):
     return neighbours_dist, indices, neighbour_mask
 
 
-def nln_errors(test_dataset: torch.utils.data.DataLoader, x_hat, x_hat_train, neighbours_idx,
+def nln_errors(test_dataset: torch.utils.data.DataLoader, x_hat, neighbours_idx,
                neighbour_mask):
     test_images = test_dataset.dataset[:][1].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
-    neighbours = x_hat_train[neighbours_idx]
+    neighbours = x_hat[neighbours_idx]
     error_nln = test_images_stacked - neighbours
     error_recon = test_images - x_hat
     error = np.mean(error_nln, axis=1)  # nanmean for frNN
@@ -127,7 +127,7 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
         return dists
 
 
-def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLoader,
+def calculate_metrics(model: Autoencoder,
                       test_masks_original: np.ndarray,
                       test_dataset: torch.utils.data.DataLoader, neighbours: int, batch_size: int,
                       model_name: str, model_type: str, anomaly_type: str,
@@ -141,10 +141,8 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
     z = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
 
-    x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
     x_hat = infer(model, test_dataset, batch_size, latent_dimension, False)
     x_hat_recon = reconstruct_patches(x_hat, original_size, patch_size)
-    x_hat_train_recon = reconstruct_patches(x_hat_train, original_size, patch_size)
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
@@ -152,7 +150,7 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
 
     ae_metrics = _calculate_metrics(test_masks_original, error_recon)
     neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
-    nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
+    nln_error = nln_errors(test_dataset, x_hat, neighbours_idx, neighbour_mask)
 
     if patch_size:
         if nln_error.ndim == 4:
@@ -188,10 +186,10 @@ def calculate_metrics(model: Autoencoder, train_dataset: torch.utils.data.DataLo
     return ae_metrics, nln_metrics, dist_metrics
 
 
-def evaluate_model(model, train_dataset, test_masks, test_dataset, neighbours, batch_size,
+def evaluate_model(model, test_masks, test_dataset, neighbours, batch_size,
                    latent_dimension, original_size, patch_size, model_name, model_type,
                    anomaly_type, dataset):
-    ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, train_dataset, test_masks,
+    ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, test_masks,
                                                               test_dataset, neighbours,
                                                               batch_size, model_name, model_type,
                                                               anomaly_type, latent_dimension,
