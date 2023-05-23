@@ -73,7 +73,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         print("Discriminator Loss: ", interim_disc_loss)
         print("Generator Loss: ", interim_gen_loss)
 
-        plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', './results',
+        plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', '.',
                                  train_dataset.batch_size)
     return 1.0, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
 
