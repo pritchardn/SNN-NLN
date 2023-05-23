@@ -79,7 +79,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 1, 'ae_learning_rate': 1e-4,
+    config_vals = {'batch_size': 64, 'epochs': 200, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, '.')
     # Test model
-    evaluate_model(auto_encoder, test_y, test_dataset,
+    evaluate_model(auto_encoder, test_y, test_dataset, train_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
                    config_vals.get('latent_dimension'),
                    train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE',
