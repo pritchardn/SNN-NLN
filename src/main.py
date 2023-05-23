@@ -17,7 +17,7 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     fake_output, _ = discriminator(x_hat)
 
     auto_loss = ae_loss(x, x_hat)
-    disc_loss = discriminator_loss(real_output, fake_output[0], 1)
+    disc_loss = discriminator_loss(real_output, fake_output, 1)
     gen_loss = generator_loss(fake_output, 1)
 
     del fake_output
