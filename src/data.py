@@ -23,8 +23,7 @@ def clip_data(image_data, masks):
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
     mi, ma = np.min(image_data), np.max(image_data)
-    output = (image_data - mi) / (ma - mi)
-    #  image_data = (image_data - _min) / (_max - _min)
+    image_data = (image_data - mi) / (ma - mi)
     return image_data
 
 
