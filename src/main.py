@@ -7,6 +7,7 @@ from evaluation import evaluate_model, plot_loss_history
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
+from conversion.ann2snn import convert_to_snn
 
 
 def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
@@ -123,11 +124,14 @@ if __name__ == "__main__":
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, '.')
     # Test model
+    """
     evaluate_model(auto_encoder, test_y, test_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
                    config_vals.get('latent_dimension'),
                    train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE',
                    config_vals.get("anomaly_type"), config_vals.get("dataset"))
+    """
+    convert_to_snn(auto_encoder, train_dataset, test_dataset)
     # Save model
     if WANDB_ACTIVE:
         wandb.finish()
