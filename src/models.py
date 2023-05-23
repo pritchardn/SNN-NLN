@@ -58,11 +58,12 @@ class Decoder(nn.Module):
         return x
 
 
-class Autoencoder(nn.Module):
+class Model(nn.Module):
 
-    def __init__(self, num_layers: int, latent_dimension: int, num_filters: int,
-                 input_shape: tuple):
+    def __init__(self, num_layers: int = 2, latent_dimension: int = 32, num_filters: int = 32,
+                 input_shape: tuple = (32, 32)):
         super().__init__()
+        self.input_shape = (1, *input_shape)
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)
         self.decoder = Decoder(input_shape, num_layers, num_filters, latent_dimension)
 

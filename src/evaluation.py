@@ -9,7 +9,7 @@ from torch import nn
 
 from config import DEVICE
 from data import reconstruct_patches, reconstruct_latent_patches
-from models import Autoencoder
+from models import Model
 
 
 def infer(model: nn.Module, dataset: torch.utils.data.DataLoader, batch_size: int,
@@ -127,7 +127,7 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
         return dists
 
 
-def calculate_metrics(model: Autoencoder,
+def calculate_metrics(model: Model,
                       test_masks_original: np.ndarray,
                       test_dataset: torch.utils.data.DataLoader, neighbours: int, batch_size: int,
                       model_name: str, model_type: str, anomaly_type: str,
@@ -211,3 +211,14 @@ def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
     output_filename = os.path.join(outputdir, 'results', 'loss.png')
     plt.savefig(output_filename)
     plt.close('all')
+
+
+def save_model_for_snn_conversion(model, train_dataset, test_dataset, model_name: str):
+    path_working_directory = os.path.abspath("./src/conversion")
+    x_test = test_dataset.dataset[:][0].cpu().detach().numpy()
+    y_test = test_dataset.dataset[:][1].cpu().detach().numpy()
+    x_train = train_dataset.dataset[:][0].cpu().detach().numpy()
+    np.savez_compressed(os.path.join(path_working_directory, "x_test"), x_test)
+    np.savez_compressed(os.path.join(path_working_directory, "y_test"), y_test)
+    np.savez_compressed(os.path.join(path_working_directory, "x_norm"), x_train[:10])
+    torch.save(model.state_dict(), os.path.join(path_working_directory, model_name + '.pkl'))

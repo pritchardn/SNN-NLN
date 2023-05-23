@@ -3,9 +3,9 @@ import wandb
 
 from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
-from evaluation import evaluate_model, plot_loss_history
+from evaluation import evaluate_model, plot_loss_history, save_model_for_snn_conversion
 from loss import ae_loss, generator_loss, discriminator_loss
-from models import Autoencoder, Discriminator
+from models import Model, Discriminator
 from plotting import plot_intermediate_images
 
 
@@ -79,7 +79,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 100, 'ae_learning_rate': 1e-4,
+    config_vals = {'batch_size': 64, 'epochs': 1, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
@@ -97,8 +97,8 @@ if __name__ == "__main__":
                                         patch_size=config_vals['patch_size'],
                                         stride=config_vals['patch_stride'])
     # Create model
-    auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(
+    auto_encoder = Model(config_vals['num_layers'], config_vals['latent_dimension'],
+                         config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(
         DEVICE)
     discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
                                   config_vals['num_filters']).to(DEVICE)
@@ -121,11 +121,14 @@ if __name__ == "__main__":
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, '.')
     # Test model
+    """
     evaluate_model(auto_encoder, test_y, test_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
                    config_vals.get('latent_dimension'),
                    train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE',
                    config_vals.get("anomaly_type"), config_vals.get("dataset"))
+    """
     # Save model
+    save_model_for_snn_conversion(auto_encoder, train_dataset, test_dataset, 'pytorch_autoencoder')
     if WANDB_ACTIVE:
         wandb.finish()
