@@ -80,7 +80,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 1, 'ae_learning_rate': 1e-4,
+    config_vals = {'batch_size': 64, 'epochs': 100, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
@@ -131,7 +131,8 @@ if __name__ == "__main__":
                    train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE',
                    config_vals.get("anomaly_type"), config_vals.get("dataset"))
     """
-    convert_to_snn(auto_encoder, train_dataset, test_dataset)
+    torch.save(auto_encoder.state_dict(), 'autoencoder.pt')
+    # convert_to_snn(auto_encoder, train_dataset, test_dataset)
     # Save model
     if WANDB_ACTIVE:
         wandb.finish()
