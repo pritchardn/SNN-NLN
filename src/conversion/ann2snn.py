@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import math
 from matplotlib import pyplot as plt
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
@@ -9,16 +10,17 @@ from models import Autoencoder
 
 
 def plot_output_states(out_images):
-    plt.figure(figsize=(50, 50))
     for i in range(len(out_images[0])):
-        sub_range = int(np.sqrt(len(out_images[0])))+1
-        plt.subplot(sub_range, sub_range, i + 1)
-        slice = out_images[0]
-        little_image = slice[i, 0, :, :]
-        plt.imshow(little_image * 127.5 + 127.5)
+        plt.figure(figsize=(10, 10))
+        sub_range = int(math.ceil(np.sqrt(len(out_images))))
+        f, axarr = plt.subplots(sub_range, sub_range)
+        axarr = axarr.flatten()
+        for j in range(len(out_images)):
+            axarr[j].imshow(np.moveaxis(out_images[j][i], 0, -1) * 127.5 + 127.5)
         plt.axis('off')
-    plt.show()
-    plt.close('all')
+        plt.savefig(f'output_{i}.png')
+        plt.close('all')
+        print(f"Done {i}")
 
 
 def run_through_data(model, dataloader, runtime=50):
@@ -46,13 +48,14 @@ def run_through_data(model, dataloader, runtime=50):
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
                 plot_output_states(out_images)
+            break
 
 
-def convert_to_snn(model, train_data_loader, test_data_loader):
-    model_converter = ann2snn.Converter(mode='max', dataloader=train_data_loader)
+def convert_to_snn(model, test_data_loader):
+    model_converter = ann2snn.Converter(mode='max', dataloader=test_data_loader)
     snn_model = model_converter(model)
     snn_model.graph.print_tabular()
-    run_through_data(model, test_data_loader)
+    run_through_data(snn_model, test_data_loader, runtime=49)
 
 
 if __name__ == "__main__":
@@ -67,18 +70,13 @@ if __name__ == "__main__":
         'num_filters': 32
     }
     model_path = 'autoencoder.pt'
-    train_dataset = process_into_dataset(train_x, train_y, batch_size=config_vals['batch_size'],
-                                         mode='HERA', threshold=config_vals['threshold'],
-                                         patch_size=config_vals['patch_size'],
-                                         stride=config_vals['patch_stride'],
-                                         filter=True)
     test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
                                         mode='HERA', threshold=config_vals['threshold'],
                                         patch_size=config_vals['patch_size'],
                                         stride=config_vals['patch_stride'])
 
     model = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                        config_vals['num_filters'], train_dataset.dataset[0][0].shape)
+                        config_vals['num_filters'], test_dataset.dataset[0][0].shape)
     model.load_state_dict(torch.load(model_path))
     model.eval()
-    convert_to_snn(model, train_dataset, test_dataset)
+    convert_to_snn(model, test_dataset)
