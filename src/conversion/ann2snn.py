@@ -2,11 +2,29 @@ import numpy as np
 import torch
 import math
 from matplotlib import pyplot as plt
+import matplotlib.animation as animation
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
 from data import load_data, process_into_dataset
 from models import Autoencoder
+
+
+def animated_plotting(out_images):
+    for i in range(len(out_images[0])):
+        fig, ax = plt.subplots()
+        ax.axis('off')
+        ims = []
+        for j in range(len(out_images)):
+            temp_im = np.moveaxis(out_images[j][i], 0, -1) * 127.5 + 127.5
+            im = ax.imshow(temp_im, animated=True)
+            if j == 0:
+                ax.imshow(temp_im)  # show an initial one first
+            ims.append([im])
+        ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
+        ani.save(f'output_{i}.gif', writer='pillow', fps=10)
+        plt.close('all')
+        print(f"Done {i}")
 
 
 def plot_output_states(out_images):
@@ -58,6 +76,7 @@ def run_through_data(model, dataloader, runtime=50):
                         out += model(img)
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
+                animated_plotting(out_images)
                 plot_output_states(out_images)
                 plot_input_images(img.cpu().numpy())
             break
