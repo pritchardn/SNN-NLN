@@ -16,9 +16,20 @@ def plot_output_states(out_images):
         f, axarr = plt.subplots(sub_range, sub_range)
         axarr = axarr.flatten()
         for j in range(len(out_images)):
+            axarr[j].axis('off')
             axarr[j].imshow(np.moveaxis(out_images[j][i], 0, -1) * 127.5 + 127.5)
         plt.axis('off')
         plt.savefig(f'output_{i}.png')
+        plt.close('all')
+        print(f"Done {i}")
+
+
+def plot_input_images(in_images):
+    for i in range(len(in_images)):
+        plt.figure(figsize=(10, 10))
+        plt.imshow(np.moveaxis(in_images[i], 0, -1) * 127.5 + 127.5)
+        plt.axis('off')
+        plt.savefig(f'input_{i}.png')
         plt.close('all')
         print(f"Done {i}")
 
@@ -48,6 +59,7 @@ def run_through_data(model, dataloader, runtime=50):
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
                 plot_output_states(out_images)
+                plot_input_images(img.cpu().numpy())
             break
 
 
@@ -55,7 +67,7 @@ def convert_to_snn(model, test_data_loader):
     model_converter = ann2snn.Converter(mode='max', dataloader=test_data_loader)
     snn_model = model_converter(model)
     snn_model.graph.print_tabular()
-    run_through_data(snn_model, test_data_loader, runtime=49)
+    run_through_data(snn_model, test_data_loader, runtime=64)
 
 
 if __name__ == "__main__":
