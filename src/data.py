@@ -1,9 +1,9 @@
+import copy
 import os
 
 import aoflagger as aof
 import numpy as np
 import torch
-from torch import Tensor
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
@@ -59,31 +59,26 @@ def extract_patches(x: torch.Tensor, kernel_size: int, stride: int, batch_size):
     input_start, input_end = 0, batch_size
     output_start, output_end = 0, batch_size * scaling_factor
     output = torch.Tensor(b * scaling_factor, c, kernel_size, kernel_size)
-    for i in range(0, len(x), batch_size):
-        x_sub = x[input_start:input_end]
-        x_sub = F.pad(x_sub, (1, 1, 1, 1))
-        patches = x_sub.unfold(2, kernel_size, stride).unfold(3, kernel_size, stride)
-        patches = patches.permute(2, 3, 0, 1, 4, 5).reshape(-1, c, kernel_size, kernel_size)
-        output[output_start:output_end] = patches
-        input_start = input_end
-        input_end += batch_size
-        output_start = output_end
-        output_end += batch_size * scaling_factor
-    return output
+    # Extract patches
+    patches = x.unfold(2, kernel_size, stride).unfold(3, kernel_size, stride)
+    patches = patches.permute(0, 2, 3, 1, 4, 5).reshape(-1, c, kernel_size, kernel_size)
+
+    return patches
+    # return output
 
 
 def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
-    # t = images.transpose(0, 1, 3, 2)
+    t = images.transpose(0, 3, 2, 1)
     n_patches = original_size // kernel_size
     recon = np.empty(
-        [images.shape[0] // n_patches ** 2, images.shape[1], kernel_size * n_patches, kernel_size * n_patches])
+        [images.shape[0] // n_patches ** 2, kernel_size * n_patches, kernel_size * n_patches,
+         images.shape[1]])
 
     start, counter, indx, b = 0, 0, 0, []
 
     for i in range(n_patches, images.shape[0] + 1, n_patches):
-        agglom = np.stack(images[start:i, ...], axis=0)
-        b.append(np.reshape(agglom,
-                            (1, kernel_size, n_patches * kernel_size)))
+        b.append(np.reshape(np.stack(t[start:i, ...], axis=0),
+                            (n_patches * kernel_size, kernel_size, images.shape[1])))
         start = i
         counter += 1
         if counter == n_patches:
@@ -91,7 +86,7 @@ def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
             indx += 1
             counter, b = 0, []
 
-    return recon.transpose(0, 1, 3, 2)
+    return recon.transpose(0, 3, 2, 1)
 
 
 def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_size: int):
@@ -105,6 +100,7 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
         start = end
         end += n_patches ** 2
     return recon
+
 
 def load_data(excluded_rfi=None, data_path='data'):
     if excluded_rfi is None:
@@ -127,8 +123,12 @@ def load_data(excluded_rfi=None, data_path='data'):
 
 
 def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None,
-                         patch_size=None, stride=None, filter=False):
+                         patch_size=None, stride=None, filter=False, get_orig=False):
     x_data, y_data = limit_entries(x_data, y_data, limit)
+    if get_orig:
+        y_data_orig = copy.deepcopy(y_data)
+    else:
+        y_data_orig = None
     masks = flag_data(x_data, threshold, mode)
     if masks is not None:
         y_data = np.expand_dims(masks, axis=-1)
@@ -138,9 +138,15 @@ def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=N
     y_data = np.moveaxis(y_data, -1, 1)
     x_data = torch.from_numpy(x_data)
     y_data = torch.from_numpy(y_data)
+    if get_orig:
+        y_data_orig = np.moveaxis(y_data_orig, -1, 1)
+        y_data_orig = torch.from_numpy(y_data_orig)
     if patch_size is not None and stride is not None:
         x_data = extract_patches(x_data, patch_size, stride, batch_size)
         y_data = extract_patches(y_data, patch_size, stride, batch_size)
+        if get_orig:
+            y_data_orig = extract_patches(y_data_orig, patch_size, stride, batch_size)
+            y_data_orig = y_data_orig.cpu().detach().numpy()
     if filter:
         # I Hate this back and forwards, but hindsight is 20/20
         x_data = x_data.numpy()
@@ -151,4 +157,5 @@ def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=N
         x_data = torch.from_numpy(x_data)
         y_data = torch.from_numpy(y_data)
     dset = TensorDataset(x_data, y_data)
-    return torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    return torch.utils.data.DataLoader(dset, batch_size=batch_size,
+                                       shuffle=shuffle), y_data_orig

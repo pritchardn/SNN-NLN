@@ -50,6 +50,13 @@ def plot_final_images(metrics: dict, neighbour: int, model_type: str,
     axs[0, 4].set_title(f'Dist {metrics.get("dists_ao_auroc", 0)} {neighbour}', fontsize=5)
     axs[0, 5].set_title(f'Combined {metrics.get("combined_ao_auroc", 0)} {neighbour}', fontsize=5)
     axs[0, 6].set_title(f'Recon {metrics.get("combined_ao_auroc", 0)} {neighbour}', fontsize=5)
+    test_images_reconstructed = np.moveaxis(test_images_reconstructed, 1, -1)
+    test_masks_reconstructed = np.moveaxis(test_masks_reconstructed, 1, -1)
+    error_reconstructed = np.moveaxis(error_reconstructed, 1, -1)
+    nln_error_reconstructed = np.moveaxis(nln_error_reconstructed, 1, -1)
+    distrubtions_reconstructed = np.moveaxis(distrubtions_reconstructed, 1, -1)
+    combined_reconstructed = np.moveaxis(combined_reconstructed, 1, -1)
+    latent_reconstructed = np.moveaxis(latent_reconstructed, 1, -1)
 
     for i in range(10):
         r = np.random.randint(len(test_images_reconstructed))
@@ -85,13 +92,14 @@ def get_error_dataset(images: torch.utils.data.DataLoader, x_hat: np.ndarray, im
 
 
 def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray):
-    test_masks = np.moveaxis(test_masks_orig_recon, -1, 1)
-    fpr, tpr, thr = roc_curve(test_masks.flatten() > 0, error_recon.flatten())
+    if error_recon.shape[1] == 1:
+        error_recon = np.moveaxis(error_recon, 1, -1)
+    fpr, tpr, thr = roc_curve(test_masks_orig_recon.flatten() > 0, error_recon.flatten())
     true_auroc = auc(fpr, tpr)
-    precision, recall, thresholds = precision_recall_curve(test_masks.flatten() > 0,
+    precision, recall, thresholds = precision_recall_curve(test_masks_orig_recon.flatten() > 0,
                                                            error_recon.flatten())
     true_auprc = auc(recall, precision)
-    f1 = 2 * (precision * recall) / (precision + recall)
+    f1 = 2 * recall * precision / (recall + precision)
     true_f1 = np.max(f1)
     return {'auroc': true_auroc, 'auprc': true_auprc, 'f1': true_f1}
 
@@ -106,13 +114,12 @@ def nln(z, z_query, neighbours):
 
 def nln_errors(test_dataset: torch.utils.data.DataLoader, x_hat, x_hat_train, neighbours_idx,
                neighbour_mask):
-    test_images = test_dataset.dataset[:][0].cpu().detach().numpy()
+    test_images = test_dataset.dataset[:][1].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
     neighbours = x_hat_train[neighbours_idx]
     error_nln = test_images_stacked - neighbours
     error_recon = test_images - x_hat
-    error = np.abs(error_nln)
-    error = np.mean(error, axis=1)  # nanmean for frNN
+    error = np.mean(error_nln, axis=1)  # nanmean for frNN
     error[neighbour_mask] = error_recon[neighbour_mask]
     return error
 
@@ -131,8 +138,9 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
 
 def calculate_metrics(model: Autoencoder,
                       test_masks_original: np.ndarray,
+                      test_dataset: torch.utils.data.DataLoader,
                       train_dataset: torch.utils.data.DataLoader,
-                      test_dataset: torch.utils.data.DataLoader, neighbours: int, batch_size: int,
+                      neighbours: int, batch_size: int,
                       model_name: str, model_type: str, anomaly_type: str,
                       latent_dimension: int, original_size: int, patch_size: int = None,
                       dataset='HERA'
@@ -141,19 +149,19 @@ def calculate_metrics(model: Autoencoder,
                                             original_size, patch_size)
     test_masks_reconstructed = reconstruct_patches(
         test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size)
-
+    test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size, patch_size)
     z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
 
-    x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
     x_hat = infer(model, test_dataset, batch_size, latent_dimension, False)
+    x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
     x_hat_recon = reconstruct_patches(x_hat, original_size, patch_size)
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
     error_recon = reconstruct_patches(error, original_size, patch_size)
 
-    ae_metrics = _calculate_metrics(test_masks_original, error_recon)
+    ae_metrics = _calculate_metrics(test_masks_original_reconstructed, error_recon)
     neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
     nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
 
@@ -180,9 +188,9 @@ def calculate_metrics(model: Autoencoder,
     combined_recon = np.nan_to_num(combined_recon)
     combined_metrics = _calculate_metrics(test_masks_original, combined_recon)
 
-    nln_metrics = _calculate_metrics(test_masks_original, nln_error_recon)
+    nln_metrics = _calculate_metrics(test_masks_original_reconstructed, nln_error_recon)
 
-    dist_metrics = _calculate_metrics(test_masks_original, dists_recon)
+    dist_metrics = _calculate_metrics(test_masks_original_reconstructed, dists_recon)
 
     plot_final_images(ae_metrics, neighbours, model_type, anomaly_type, model_name,
                       test_images_recon,
@@ -195,7 +203,7 @@ def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, b
                    latent_dimension, original_size, patch_size, model_name, model_type,
                    anomaly_type, dataset):
     ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, test_masks,
-                                                              train_dataset, test_dataset, neighbours,
+                                                              test_dataset, train_dataset, neighbours,
                                                               batch_size, model_name, model_type,
                                                               anomaly_type, latent_dimension,
                                                               original_size, patch_size, dataset)
