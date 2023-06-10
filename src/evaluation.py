@@ -34,7 +34,7 @@ def save_metrics(ae_metrics: dict, nln_metrics: dict, dist_metrics: dict, model_
     output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
     os.makedirs(output_filepath, exist_ok=True)
     with open(os.path.join(output_filepath, "metrics.json"), "w") as f:
-        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f)
+        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f, indent=4)
 
 
 def plot_final_images(metrics: dict, neighbour: int, model_type: str,
