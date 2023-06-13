@@ -1,3 +1,6 @@
+import json
+import os
+
 import torch
 import wandb
 
@@ -7,7 +10,11 @@ from evaluation import evaluate_model, plot_loss_history
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
-from conversion.ann2snn import convert_to_snn
+
+
+def save_config(config: dict, output_dir: str):
+    with open(os.path.join(output_dir, "config.json"), "w") as f:
+        json.dump(config, f, indent=4)
 
 
 def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
@@ -37,7 +44,7 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
 
 
 def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_optimizer,
-                generator_optimizer, epochs):
+                generator_optimizer, epochs, model_type, output_dir):
     ae_loss_history = []
     disc_loss_history = []
     gen_loss_history = []
@@ -74,20 +81,29 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         print("Discriminator Loss: ", interim_disc_loss)
         print("Generator Loss: ", interim_gen_loss)
 
-        plot_intermediate_images(auto_encoder, train_dataset, t + 1, 'DAE', '.',
+        plot_intermediate_images(auto_encoder, train_dataset, t + 1, model_type, output_dir,
                                  train_dataset.batch_size)
     return 1.0, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
 
 
 if __name__ == "__main__":
-    config_vals = {'batch_size': 64, 'epochs': 1, 'ae_learning_rate': 1e-4,
+    config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
-                   'dataset': 'HERA'}
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None}
+    config_vals['model_name'] = f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_' \
+                                f'{config_vals["dataset"]}_{config_vals["latent_dimension"]}_' \
+                                f'{config_vals["num_layers"]}_' \
+                                f'{config_vals["threshold"]}'
+    if config_vals['excluded_rfi']:
+        config_vals['model_name'] += f'{config_vals["excluded_rfi"]}'
+    output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
+                 f'{config_vals["model_name"]}/'
     if WANDB_ACTIVE:
         wandb.init(project='snn-nln-1', config=config_vals)
-    train_x, train_y, test_x, test_y, rfi_models = load_data()
+    train_x, train_y, test_x, test_y, rfi_models = load_data(
+        excluded_rfi=config_vals['excluded_rfi'])
     train_dataset, _ = process_into_dataset(train_x, train_y,
                                             batch_size=config_vals['batch_size'],
                                             mode='HERA',
@@ -124,19 +140,20 @@ if __name__ == "__main__":
         train_model(
             auto_encoder, discriminator, train_dataset,
             ae_optimizer, disc_optimizer,
-            generator_optimizer, config_vals['epochs'])
+            generator_optimizer, config_vals['epochs'], config_vals['model_type'], output_dir)
     auto_encoder.eval()
     discriminator.eval()
     # Plot loss history
-    plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, '.')
+    plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
     # Test model
     evaluate_model(auto_encoder, test_masks_original, test_dataset, train_dataset,
                    config_vals.get('neighbours'), config_vals.get('batch_size'),
                    config_vals.get('latent_dimension'),
-                   train_x[0].shape[0], config_vals.get('patch_size'), 'dae', 'DAE',
+                   train_x[0].shape[0], config_vals.get('patch_size'), config_vals['model_name'],
+                   config_vals['model_type'],
                    config_vals.get("anomaly_type"), config_vals.get("dataset"))
-    torch.save(auto_encoder.state_dict(), 'autoencoder.pt')
+    torch.save(auto_encoder.state_dict(), os.path.join(output_dir, 'autoencoder.pt'))
+    save_config(config_vals, output_dir)
     # convert_to_snn(auto_encoder, train_dataset, test_dataset)
-    # Save model
     if WANDB_ACTIVE:
         wandb.finish()

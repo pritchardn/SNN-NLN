@@ -34,7 +34,7 @@ def save_metrics(ae_metrics: dict, nln_metrics: dict, dist_metrics: dict, model_
     output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
     os.makedirs(output_filepath, exist_ok=True)
     with open(os.path.join(output_filepath, "metrics.json"), "w") as f:
-        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f)
+        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f, indent=4)
 
 
 def plot_final_images(metrics: dict, neighbour: int, model_type: str,
@@ -196,6 +196,7 @@ def calculate_metrics(model: Autoencoder,
                       test_images_recon,
                       test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
                       combined_recon, x_hat_recon)
+    np.save(f'./outputs/{model_type}/{anomaly_type}/{model_name}/test_query.npy', z_query)
     return ae_metrics, nln_metrics, dist_metrics
 
 
