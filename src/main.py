@@ -86,7 +86,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
     return 1.0, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
 
 
-if __name__ == "__main__":
+def main():
     config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 3, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
@@ -157,3 +157,7 @@ if __name__ == "__main__":
     # convert_to_snn(auto_encoder, train_dataset, test_dataset)
     if WANDB_ACTIVE:
         wandb.finish()
+
+
+if __name__ == "__main__":
+    main()
