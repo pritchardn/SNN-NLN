@@ -86,12 +86,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
     return 1.0, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
 
 
-def main():
-    config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
-                   'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
-                   'num_layers': 3, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
-                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
-                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': 'rfi_scatter'}
+def main(config_vals: dict):
     config_vals['model_name'] = f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_' \
                                 f'{config_vals["dataset"]}_{config_vals["latent_dimension"]}_' \
                                 f'{config_vals["num_layers"]}_' \
@@ -160,4 +155,24 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    SWEEP = True
+    num_layers_vals = [2, 3]
+    latent_dimension_vals = [32, 64]
+    rfi_exclusion_vals = [None, 'rfi_stations', 'rfi_dtv', 'rfi_impulse', 'rfi_scatter']
+    config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
+                   'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
+                   'num_layers': 3, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': 'rfi_scatter'}
+    i = 0
+    if SWEEP:
+        for latent_dim in latent_dimension_vals:
+            for num_layers in num_layers_vals:
+                for rfi_excluded in rfi_exclusion_vals:
+                    config_vals['latent_dimension'] = latent_dim
+                    config_vals['num_layers'] = num_layers
+                    config_vals['excluded_rfi'] = rfi_excluded
+                    print(config_vals)
+                    main(config_vals)
+    else:
+        main(config_vals)
