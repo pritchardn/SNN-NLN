@@ -89,15 +89,15 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 if __name__ == "__main__":
     config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
+                   'num_layers': 3, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
-                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None}
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': 'rfi_scatter'}
     config_vals['model_name'] = f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_' \
                                 f'{config_vals["dataset"]}_{config_vals["latent_dimension"]}_' \
                                 f'{config_vals["num_layers"]}_' \
                                 f'{config_vals["threshold"]}'
     if config_vals['excluded_rfi']:
-        config_vals['model_name'] += f'{config_vals["excluded_rfi"]}'
+        config_vals['model_name'] += f'_{config_vals["excluded_rfi"]}'
     output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
                  f'{config_vals["model_name"]}/'
     if WANDB_ACTIVE:
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                                                              threshold=config_vals['threshold'],
                                                              patch_size=config_vals['patch_size'],
                                                              stride=config_vals['patch_stride'],
-                                                             shuffle=True,
+                                                             shuffle=False,
                                                              get_orig=True)
     # Create model
     auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
