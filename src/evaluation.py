@@ -1,9 +1,10 @@
+import json
 import os
+
+import faiss
 import matplotlib.pyplot as plt
 import numpy as np
 import torch.utils.data
-import faiss
-import json
 from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from torch import nn
 
@@ -29,12 +30,13 @@ def infer(model: nn.Module, dataset: torch.utils.data.DataLoader, batch_size: in
     return output
 
 
-def save_metrics(ae_metrics: dict, nln_metrics: dict, dist_metrics: dict, model_type: str,
-                 anomaly_type: str, model_name: str):
+def save_metrics(ae_metrics: dict, nln_metrics: dict, dist_metrics: dict, combined_metrics: dict,
+                 model_type: str, anomaly_type: str, model_name: str):
     output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
     os.makedirs(output_filepath, exist_ok=True)
     with open(os.path.join(output_filepath, "metrics.json"), "w") as f:
-        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics}, f, indent=4)
+        json.dump({"ae": ae_metrics, "nln": nln_metrics, "dist": dist_metrics,
+                   "combined": combined_metrics}, f, indent=4)
 
 
 def plot_final_images(metrics: dict, neighbour: int, model_type: str,
@@ -149,7 +151,8 @@ def calculate_metrics(model: Autoencoder,
                                             original_size, patch_size)
     test_masks_reconstructed = reconstruct_patches(
         test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size)
-    test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size, patch_size)
+    test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
+                                                            patch_size)
     z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
 
@@ -197,18 +200,25 @@ def calculate_metrics(model: Autoencoder,
                       test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
                       combined_recon, x_hat_recon)
     np.save(f'./outputs/{model_type}/{anomaly_type}/{model_name}/test_query.npy', z_query)
-    return ae_metrics, nln_metrics, dist_metrics
+    return ae_metrics, nln_metrics, dist_metrics, combined_metrics
 
 
 def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, batch_size,
                    latent_dimension, original_size, patch_size, model_name, model_type,
                    anomaly_type, dataset):
-    ae_metrics, nln_metrics, dist_metrics = calculate_metrics(model, test_masks,
-                                                              test_dataset, train_dataset, neighbours,
-                                                              batch_size, model_name, model_type,
-                                                              anomaly_type, latent_dimension,
-                                                              original_size, patch_size, dataset)
-    save_metrics(ae_metrics, nln_metrics, dist_metrics, model_type, anomaly_type, model_name)
+    ae_metrics, nln_metrics, dist_metrics, combined_metrics = calculate_metrics(model, test_masks,
+                                                                                test_dataset,
+                                                                                train_dataset,
+                                                                                neighbours,
+                                                                                batch_size,
+                                                                                model_name,
+                                                                                model_type,
+                                                                                anomaly_type,
+                                                                                latent_dimension,
+                                                                                original_size,
+                                                                                patch_size, dataset)
+    save_metrics(ae_metrics, nln_metrics, dist_metrics, combined_metrics,
+                 model_type, anomaly_type, model_name)
 
 
 def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
