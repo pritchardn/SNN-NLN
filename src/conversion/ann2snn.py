@@ -58,9 +58,10 @@ def plot_outputs(out_images):
         animated_plotting(output_states)
 
 
-def infer_snn(model, dataloader, runtime=50):
+def infer_snn(model, dataloader, runtime=50, batch_limit=1):
     model.eval().to('cuda')
     full_output = []
+    i = 0
     with torch.no_grad():
         for batch, (img, label) in enumerate(tqdm(dataloader)):
             img = img.to('cuda')
@@ -80,7 +81,9 @@ def infer_snn(model, dataloader, runtime=50):
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
                 full_output.append(out_images)
-            break
+            i += 1
+            if i == batch_limit:
+                break
     return full_output  # [N, T, C, W, H]
 
 
