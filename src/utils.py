@@ -8,6 +8,10 @@ def generate_model_name(config_vals: dict):
                  f'{config_vals["threshold"]}'
     if config_vals['excluded_rfi']:
         model_name += f'_{config_vals["excluded_rfi"]}'
+    if config_vals['time_length']:
+        model_name += f'_{config_vals["time_length"]}'
+    if config_vals['average_n']:
+        model_name += f'_{config_vals["average_n"]}'
     return model_name
 
 

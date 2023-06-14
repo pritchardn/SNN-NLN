@@ -1,3 +1,4 @@
+import glob
 import json
 import math
 import os
@@ -134,19 +135,20 @@ def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.
     return model
 
 
-def snln(x_hat, test_dataset):
+def snln(x_hat, test_dataset, average_n):
     # x_hat: [N, T, C, W, H]
-    x_hat_trimmed = x_hat[:, -5:, :, :, :]
+    x_hat_trimmed = x_hat[:, average_n:, :, :, :]
     average_x_hat = np.mean(x_hat_trimmed, axis=1)
     error = test_dataset.dataset[:][1].cpu().detach().numpy() - average_x_hat
     return error
 
 
-def evaluate_snn(model, test_dataset, test_masks_original, patch_size, original_size, runtime):
+def evaluate_snn(model, test_dataset, test_masks_original, patch_size, original_size, runtime,
+                 average_n):
     test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
                                                             patch_size)
     x_hat = np.asarray(infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1))
-    snln_error = snln(x_hat, test_dataset)
+    snln_error = snln(x_hat, test_dataset, average_n)
     if patch_size:
         if snln_error.ndim == 4:
             snln_error_recon = reconstruct_patches(snln_error, original_size, patch_size)
@@ -164,8 +166,10 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
         json.dump(snn_metrics, f, indent=4)
 
 
-def main(input_dir: str):
+def main(input_dir: str, time_length, average_n):
     config_vals = load_config(input_dir)
+    config_vals['time_length'] = time_length
+    config_vals['average_n'] = average_n
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
@@ -174,7 +178,7 @@ def main(input_dir: str):
     snn_model = convert_to_snn(model, test_dataset)
     # Evaluate
     sln_metrics = evaluate_snn(snn_model, test_dataset, test_masks_original,
-                               config_vals['patch_size'], 512, 64)
+                               config_vals['patch_size'], 512, time_length, average_n)
     # Save results to file
     config_vals["model_type"] = "SDAE"
     config_vals['model_name'] = generate_model_name(config_vals)
@@ -186,5 +190,17 @@ def main(input_dir: str):
 
 
 if __name__ == "__main__":
-    input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
-    main(input_dir)
+    SWEEP = True
+    input_dirs = glob.glob("./outputs/DAE/MISO/*")
+    time_lengths = [32, 64, 128, 256]
+    average_n = [2, 4, 8, 16, 32]
+    i = 0
+    if SWEEP:
+        for input_dir in input_dirs:
+            for time_length in time_lengths:
+                for n in average_n:
+                    print(f"{input_dir}\t{time_length}\t{n}")
+                    main(input_dir, time_length, n)
+    else:
+        input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
+        main(input_dir, 64, 5)

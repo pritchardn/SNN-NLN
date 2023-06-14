@@ -159,7 +159,6 @@ if __name__ == "__main__":
                    'num_layers': 3, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
                    'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': 'rfi_scatter'}
-    i = 0
     if SWEEP:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
