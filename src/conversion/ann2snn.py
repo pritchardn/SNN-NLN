@@ -161,7 +161,7 @@ def main(input_dir: str):
     output_dir = generate_output_dir(config_vals)
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
-    # TODO: Save model to file
+    torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
     # Plot results to file
     print(json.dumps(config_vals, indent=4))
 
