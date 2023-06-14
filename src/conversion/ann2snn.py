@@ -9,7 +9,8 @@ from matplotlib import pyplot as plt
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
-from data import load_data, process_into_dataset
+from data import load_data, process_into_dataset, reconstruct_latent_patches, reconstruct_patches
+from evaluation import _calculate_metrics
 from main import save_config
 from models import Autoencoder
 from utils import generate_model_name, generate_output_dir
@@ -113,14 +114,15 @@ def load_config(input_dir: str):
 
 def load_test_dataset(config_vals: dict):
     _, _, test_x, test_y, rfi_models = load_data()
-    test_dataset, _ = process_into_dataset(test_x, test_y,
-                                           batch_size=config_vals['batch_size'],
-                                           mode='HERA',
-                                           threshold=config_vals['threshold'],
-                                           patch_size=config_vals['patch_size'],
-                                           stride=config_vals['patch_stride'],
-                                           shuffle=False)
-    return test_dataset
+    test_dataset, y_data_orig = process_into_dataset(test_x, test_y,
+                                                     batch_size=config_vals['batch_size'],
+                                                     mode='HERA',
+                                                     threshold=config_vals['threshold'],
+                                                     patch_size=config_vals['patch_size'],
+                                                     stride=config_vals['patch_stride'],
+                                                     shuffle=False,
+                                                     get_orig=True)
+    return test_dataset, y_data_orig
 
 
 def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset):
@@ -132,8 +134,28 @@ def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.
     return model
 
 
-def evaluate_snn(model, test_dataset):
-    return {"auroc": 1.0, "auprc": 1.0, "f1": 1.0}
+def snln(x_hat, test_dataset):
+    # x_hat: [N, T, C, W, H]
+    x_hat_trimmed = x_hat[:, -5:, :, :, :]
+    average_x_hat = np.mean(x_hat_trimmed, axis=1)
+    error = test_dataset.dataset[:][1].cpu().detach().numpy() - average_x_hat
+    return error
+
+
+def evaluate_snn(model, test_dataset, test_masks_original, patch_size, original_size, runtime):
+    test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
+                                                            patch_size)
+    x_hat = np.asarray(infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1))
+    snln_error = snln(x_hat, test_dataset)
+    if patch_size:
+        if snln_error.ndim == 4:
+            snln_error_recon = reconstruct_patches(snln_error, original_size, patch_size)
+        else:
+            snln_error_recon = reconstruct_latent_patches(snln_error, original_size, patch_size)
+    else:
+        snln_error_recon = snln_error
+    snln_metrics = _calculate_metrics(test_masks_original_reconstructed, snln_error_recon)
+    return snln_metrics
 
 
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
@@ -145,16 +167,14 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
 def main(input_dir: str):
     config_vals = load_config(input_dir)
     # Get dataset
-    test_dataset = load_test_dataset(config_vals)
+    test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
     model = load_ann_model(input_dir, config_vals, test_dataset)
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset)
-    # Infer with SNN
-    full_outputs = infer_snn(snn_model, test_dataset, runtime=32, batch_limit=1)
-    print(len(full_outputs))
-    # Evaluate results
-    sln_metrics = evaluate_snn(snn_model, test_dataset)
+    # Evaluate
+    sln_metrics = evaluate_snn(snn_model, test_dataset, test_masks_original,
+                               config_vals['patch_size'], 512, 64)
     # Save results to file
     config_vals["model_type"] = "SDAE"
     config_vals['model_name'] = generate_model_name(config_vals)
@@ -163,7 +183,6 @@ def main(input_dir: str):
     save_results(config_vals, sln_metrics, output_dir)
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
     # Plot results to file
-    print(json.dumps(config_vals, indent=4))
 
 
 if __name__ == "__main__":
