@@ -10,6 +10,7 @@ from evaluation import evaluate_model, plot_loss_history
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
+from utils import generate_model_name
 
 
 def save_config(config: dict, output_dir: str):
@@ -87,12 +88,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
 
 
 def main(config_vals: dict):
-    config_vals['model_name'] = f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_' \
-                                f'{config_vals["dataset"]}_{config_vals["latent_dimension"]}_' \
-                                f'{config_vals["num_layers"]}_' \
-                                f'{config_vals["threshold"]}'
-    if config_vals['excluded_rfi']:
-        config_vals['model_name'] += f'_{config_vals["excluded_rfi"]}'
+    config_vals['model_name'] = generate_model_name(config_vals)
     output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
                  f'{config_vals["model_name"]}/'
     if WANDB_ACTIVE:

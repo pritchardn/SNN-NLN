@@ -217,6 +217,7 @@ def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, b
                                                                                 latent_dimension,
                                                                                 original_size,
                                                                                 patch_size, dataset)
+    # TODO: Move metric saving to outside
     save_metrics(ae_metrics, nln_metrics, dist_metrics, combined_metrics,
                  model_type, anomaly_type, model_name)
 

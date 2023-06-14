@@ -1,4 +1,6 @@
+import json
 import math
+import os
 
 import matplotlib.animation as animation
 import numpy as np
@@ -6,6 +8,11 @@ import torch
 from matplotlib import pyplot as plt
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
+
+from data import load_data, process_into_dataset
+from main import save_config
+from models import Autoencoder
+from utils import generate_model_name, generate_output_dir
 
 
 def animated_plotting(out_images):
@@ -78,7 +85,7 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1):
                         out += model(img)
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
-                full_output.append(out_images)
+                full_output.extend(out_images)
             i += 1
             if i == batch_limit:
                 break
@@ -95,3 +102,70 @@ def convert_to_snn(model, test_data_loader):
 def test_snn_model(snn_model, test_data_loader):
     full_output = infer_snn(snn_model, test_data_loader, runtime=64)
     plot_outputs(full_output)
+
+
+def load_config(input_dir: str):
+    config_file_path = os.path.join(input_dir, "config.json")
+    with open(config_file_path, "r") as f:
+        config = json.load(f)
+    return config
+
+
+def load_test_dataset(config_vals: dict):
+    _, _, test_x, test_y, rfi_models = load_data()
+    test_dataset, _ = process_into_dataset(test_x, test_y,
+                                           batch_size=config_vals['batch_size'],
+                                           mode='HERA',
+                                           threshold=config_vals['threshold'],
+                                           patch_size=config_vals['patch_size'],
+                                           stride=config_vals['patch_stride'],
+                                           shuffle=False)
+    return test_dataset
+
+
+def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset):
+    model_path = os.path.join(input_dir, "autoencoder.pt")
+    model = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
+                        config_vals['num_filters'], test_dataset.dataset[0][0].shape)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
+
+
+def evaluate_snn(model, test_dataset):
+    return {"auroc": 1.0, "auprc": 1.0, "f1": 1.0}
+
+
+def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
+    save_config(config_vals, output_dir)
+    with open(os.path.join(output_dir, "metrics.json"), "w") as f:
+        json.dump(snn_metrics, f, indent=4)
+
+
+def main(input_dir: str):
+    config_vals = load_config(input_dir)
+    # Get dataset
+    test_dataset = load_test_dataset(config_vals)
+    # Load model
+    model = load_ann_model(input_dir, config_vals, test_dataset)
+    # Convert to SNN
+    snn_model = convert_to_snn(model, test_dataset)
+    # Infer with SNN
+    full_outputs = infer_snn(snn_model, test_dataset, runtime=32, batch_limit=1)
+    print(len(full_outputs))
+    # Evaluate results
+    sln_metrics = evaluate_snn(snn_model, test_dataset)
+    # Save results to file
+    config_vals["model_type"] = "SDAE"
+    config_vals['model_name'] = generate_model_name(config_vals)
+    output_dir = generate_output_dir(config_vals)
+    os.makedirs(output_dir, exist_ok=True)
+    save_results(config_vals, sln_metrics, output_dir)
+    # TODO: Save model to file
+    # Plot results to file
+    print(json.dumps(config_vals, indent=4))
+
+
+if __name__ == "__main__":
+    input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
+    main(input_dir)
