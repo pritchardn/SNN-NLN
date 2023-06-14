@@ -52,12 +52,15 @@ def plot_input_images(in_images):
         print(f"Done {i}")
 
 
-def run_through_data(model, dataloader, runtime=50):
+def plot_outputs(out_images):
+    for output_states in out_images:
+        plot_output_states(output_states)
+        animated_plotting(output_states)
+
+
+def infer_snn(model, dataloader, runtime=50):
     model.eval().to('cuda')
-    correct = 0.0
-    total = 0.0
-    if runtime:
-        corrects = np.zeros(runtime)
+    full_output = []
     with torch.no_grad():
         for batch, (img, label) in enumerate(tqdm(dataloader)):
             img = img.to('cuda')
@@ -76,17 +79,21 @@ def run_through_data(model, dataloader, runtime=50):
                         out += model(img)
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
-                animated_plotting(out_images)
-                plot_output_states(out_images)
-                plot_input_images(img.cpu().numpy())
+                full_output.append(out_images)
             break
+    return full_output  # [N, T, C, W, H]
 
 
 def convert_to_snn(model, test_data_loader):
     model_converter = ann2snn.Converter(mode='max', dataloader=test_data_loader)
     snn_model = model_converter(model)
     snn_model.graph.print_tabular()
-    run_through_data(snn_model, test_data_loader, runtime=64)
+    return snn_model
+
+
+def test_snn_model(snn_model, test_data_loader):
+    full_output = infer_snn(snn_model, test_data_loader, runtime=64)
+    plot_outputs(full_output)
 
 
 if __name__ == "__main__":
@@ -101,7 +108,7 @@ if __name__ == "__main__":
         'num_filters': 32
     }
     model_path = 'autoencoder.pt'
-    test_dataset = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
+    test_dataset, test_labels_orig = process_into_dataset(test_x, test_y, batch_size=config_vals['batch_size'],
                                         mode='HERA', threshold=config_vals['threshold'],
                                         patch_size=config_vals['patch_size'],
                                         stride=config_vals['patch_stride'])
@@ -110,4 +117,5 @@ if __name__ == "__main__":
                         config_vals['num_filters'], test_dataset.dataset[0][0].shape)
     model.load_state_dict(torch.load(model_path))
     model.eval()
-    convert_to_snn(model, test_dataset)
+    snn_model = convert_to_snn(model, test_dataset)
+    test_snn_model(snn_model, test_dataset)
