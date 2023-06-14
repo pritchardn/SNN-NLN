@@ -137,7 +137,7 @@ def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.
 
 def snln(x_hat, test_dataset, average_n):
     # x_hat: [N, T, C, W, H]
-    x_hat_trimmed = x_hat[:, average_n:, :, :, :]
+    x_hat_trimmed = x_hat[:, -average_n:, :, :, :]
     average_x_hat = np.mean(x_hat_trimmed, axis=1)
     error = test_dataset.dataset[:][1].cpu().detach().numpy() - average_x_hat
     return error
