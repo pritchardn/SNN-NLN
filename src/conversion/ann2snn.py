@@ -219,7 +219,7 @@ def plot_snn_results(original_images, test_masks_recon, snln_error_recon, infere
     ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
     plt.savefig(os.path.join(plot_directory, "results.png"), dpi=300)
     ani.save(os.path.join(plot_directory, "results.gif"), writer='pillow', fps=10)
-
+    plt.close('all')
 
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
     save_config(config_vals, output_dir)
