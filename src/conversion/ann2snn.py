@@ -221,6 +221,7 @@ def plot_snn_results(original_images, test_masks_recon, snln_error_recon, infere
     ani.save(os.path.join(plot_directory, "results.gif"), writer='pillow', fps=10)
     plt.close('all')
 
+
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
     save_config(config_vals, output_dir)
     with open(os.path.join(output_dir, "metrics.json"), "w") as f:
@@ -231,6 +232,8 @@ def main(input_dir: str, time_length, average_n):
     config_vals = load_config(input_dir)
     config_vals['time_length'] = time_length
     config_vals['average_n'] = average_n
+    config_vals["model_type"] = "SDAE"
+    config_vals['model_name'] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
@@ -252,8 +255,6 @@ def main(input_dir: str, time_length, average_n):
     plot_snn_results(test_images, test_masks_original_recon, snln_error_recon, inference_recon,
                      output_dir)
     # Save results to file
-    config_vals["model_type"] = "SDAE"
-    config_vals['model_name'] = generate_model_name(config_vals)
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
@@ -262,7 +263,7 @@ def main(input_dir: str, time_length, average_n):
 if __name__ == "__main__":
     SWEEP = True
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
-    time_lengths = [32, 64, 128, 256]
+    time_lengths = [32, 64, 96]
     average_n = [2, 4, 8, 16, 32]
     i = 0
     if SWEEP:
