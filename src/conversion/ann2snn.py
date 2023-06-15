@@ -158,7 +158,67 @@ def evaluate_snn(model, test_dataset, test_masks_original, patch_size, original_
     else:
         snln_error_recon = snln_error
     snln_metrics = _calculate_metrics(test_masks_original_reconstructed, snln_error_recon)
-    return snln_metrics
+    return snln_metrics, snln_error_recon, x_hat
+
+
+def reconstruct_snn_inference(inference: np.array, original_size: int, kernel_size: int):
+    t = np.vstack(inference.transpose(0, 2, 4, 5, 1, 3))
+    n_patches = original_size // kernel_size
+    reconstruction = np.empty(
+        [t.shape[0] // n_patches ** 2,
+         kernel_size * n_patches,
+         kernel_size * n_patches,
+         t.shape[-2],
+         t.shape[-1]])
+
+    start, counter, indx, b = 0, 0, 0, []
+
+    for i in range(n_patches, t.shape[0] + 1, n_patches):
+        b.append(np.reshape(np.stack(t[start:i, ...], axis=0),
+                            (n_patches * kernel_size, kernel_size, t.shape[-2], t.shape[-1])))
+        start = i
+        counter += 1
+        if counter == n_patches:
+            reconstruction[indx, ...] = np.hstack(b)
+            indx += 1
+            counter, b = 0, []
+    reconstruction = reconstruction.transpose(0, 3, 4, 1, 2)
+    return reconstruction
+
+
+def plot_snn_results(original_images, test_masks_recon, snln_error_recon, inference, output_dir):
+    plot_directory = os.path.join(output_dir, "results")
+    os.makedirs(plot_directory, exist_ok=True)
+    plot_images = np.moveaxis(original_images[:10, ...], 1, -1)
+    plot_masks = np.moveaxis(test_masks_recon[:10, ...], 1, -1)
+    plot_snln = np.moveaxis(snln_error_recon[:10, ...], 1, -1)
+    plot_inference = inference[:10, ...]
+    fig, axs = plt.subplots(10, 4, figsize=(10, 8))
+    axs[0, 0].set_title("Original", fontsize=5)
+    axs[0, 1].set_title("Mask", fontsize=5)
+    axs[0, 2].set_title("SNLN", fontsize=5)
+    axs[0, 3].set_title("Inference", fontsize=5)
+    ims = []
+    for i in range(10):
+        axs[i, 0].imshow(plot_images[i, ..., 0], interpolation='nearest', aspect='auto')
+        axs[i, 1].imshow(plot_masks[i, ..., 0], interpolation='nearest', aspect='auto')
+        axs[i, 2].imshow(plot_snln[i, ..., 0], interpolation='nearest', aspect='auto')
+
+        for j in range(plot_inference.shape[1]):
+            temp_im = np.moveaxis(plot_inference[i][j], 0, -1) * 127.5 + 127.5
+            im = axs[i, 3].imshow(temp_im, animated=True, interpolation='nearest', aspect='auto')
+            if j == 0:
+                axs[i, 3].imshow(temp_im, interpolation='nearest',
+                                 aspect='auto')  # show an initial one first
+            ims.append([im])
+        # axs[i, 3].imshow(plot_inference[i, ...], interpolation='nearest', aspect='auto')
+        axs[i, 0].axis('off')
+        axs[i, 1].axis('off')
+        axs[i, 2].axis('off')
+        axs[i, 3].axis('off')
+    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
+    plt.savefig(os.path.join(plot_directory, "results.png"), dpi=300)
+    ani.save(os.path.join(plot_directory, "results.gif"), writer='pillow', fps=10)
 
 
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
@@ -171,6 +231,7 @@ def main(input_dir: str, time_length, average_n):
     config_vals = load_config(input_dir)
     config_vals['time_length'] = time_length
     config_vals['average_n'] = average_n
+    output_dir = generate_output_dir(config_vals)
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
@@ -178,20 +239,28 @@ def main(input_dir: str, time_length, average_n):
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset)
     # Evaluate
-    sln_metrics = evaluate_snn(snn_model, test_dataset, test_masks_original,
-                               config_vals['patch_size'], 512, time_length, average_n)
+    sln_metrics, snln_error_recon, inference = evaluate_snn(snn_model, test_dataset,
+                                                            test_masks_original,
+                                                            config_vals['patch_size'], 512,
+                                                            time_length, average_n)
+    # Plot results
+    test_images = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(), 512,
+                                      config_vals['patch_size'])
+    test_masks_original_recon = reconstruct_patches(test_masks_original, 512,
+                                                    config_vals['patch_size'])
+    inference_recon = reconstruct_snn_inference(inference, 512, config_vals['patch_size'])
+    plot_snn_results(test_images, test_masks_original_recon, snln_error_recon, inference_recon,
+                     output_dir)
     # Save results to file
     config_vals["model_type"] = "SDAE"
     config_vals['model_name'] = generate_model_name(config_vals)
-    output_dir = generate_output_dir(config_vals)
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
-    # Plot results to file
 
 
 if __name__ == "__main__":
-    SWEEP = False
+    SWEEP = True
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64, 128, 256]
     average_n = [2, 4, 8, 16, 32]
