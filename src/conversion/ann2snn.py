@@ -87,11 +87,11 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1):
                         out += model(img)
                     # Add current state to image building
                     out_images.append(out.cpu().numpy())
-                full_output.extend(out_images)
+                full_output.append(out_images)
             i += 1
             if i == batch_limit:
                 break
-    return full_output  # [N, T, C, W, H]
+    return np.asarray(full_output)  # [B, T, N, C, W, H]
 
 
 def convert_to_snn(model, test_data_loader):
@@ -136,10 +136,11 @@ def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.
 
 
 def snln(x_hat, test_dataset, average_n):
-    # x_hat: [N, T, C, W, H]
-    x_hat_trimmed = x_hat[:, -average_n:, :, :, :]
-    average_x_hat = np.mean(x_hat_trimmed, axis=1)
-    error = test_dataset.dataset[:][1].cpu().detach().numpy() - average_x_hat
+    # x_hat: [B, T, N, C, W, H]
+    x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
+    average_x_hat = np.vstack(np.mean(x_hat_trimmed, axis=1))
+    images = test_dataset.dataset[:][1].cpu().detach().numpy()
+    error = images - average_x_hat
     return error
 
 
@@ -147,7 +148,7 @@ def evaluate_snn(model, test_dataset, test_masks_original, patch_size, original_
                  average_n):
     test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
                                                             patch_size)
-    x_hat = np.asarray(infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1))
+    x_hat = infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1)
     snln_error = snln(x_hat, test_dataset, average_n)
     if patch_size:
         if snln_error.ndim == 4:
@@ -190,7 +191,7 @@ def main(input_dir: str, time_length, average_n):
 
 
 if __name__ == "__main__":
-    SWEEP = True
+    SWEEP = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64, 128, 256]
     average_n = [2, 4, 8, 16, 32]
@@ -203,4 +204,4 @@ if __name__ == "__main__":
                     main(input_dir, time_length, n)
     else:
         input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
-        main(input_dir, 64, 5)
+        main(input_dir, 32, 5)
