@@ -235,7 +235,7 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
         json.dump(snn_metrics, f, indent=4)
 
 
-def main(input_dir: str, time_length, average_n, skip_exists=True):
+def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
     config_vals = load_config(input_dir)
     config_vals['time_length'] = time_length
     config_vals['average_n'] = average_n
@@ -256,13 +256,14 @@ def main(input_dir: str, time_length, average_n, skip_exists=True):
                                                             config_vals['patch_size'], 512,
                                                             time_length, average_n)
     # Plot results
-    test_images = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(), 512,
-                                      config_vals['patch_size'])
-    test_masks_original_recon = reconstruct_patches(test_masks_original, 512,
-                                                    config_vals['patch_size'])
-    inference_recon = reconstruct_snn_inference(inference, 512, config_vals['patch_size'])
-    plot_snn_results(test_images, test_masks_original_recon, snln_error_recon, inference_recon,
-                     output_dir)
+    if plot:
+        test_images = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(), 512,
+                                          config_vals['patch_size'])
+        test_masks_original_recon = reconstruct_patches(test_masks_original, 512,
+                                                        config_vals['patch_size'])
+        inference_recon = reconstruct_snn_inference(inference, 512, config_vals['patch_size'])
+        plot_snn_results(test_images, test_masks_original_recon, snln_error_recon, inference_recon,
+                         output_dir)
     # Save results to file
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
@@ -270,7 +271,7 @@ def main(input_dir: str, time_length, average_n, skip_exists=True):
 
 
 if __name__ == "__main__":
-    SWEEP = False
+    SWEEP = True
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
@@ -279,8 +280,11 @@ if __name__ == "__main__":
         for input_dir in input_dirs:
             for time_length in time_lengths:
                 for n in average_n:
+                    plot = False
+                    if time_length == 64 and average_n == 32:
+                        plot = True
                     print(f"{input_dir}\t{time_length}\t{n}")
-                    main(input_dir, time_length, n)
+                    main(input_dir, time_length, n, plot=plot)
     else:
         input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
         main(input_dir, 32, 5, skip_exists=False)
