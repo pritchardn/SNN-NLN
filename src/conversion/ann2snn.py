@@ -235,6 +235,8 @@ def main(input_dir: str, time_length, average_n):
     config_vals["model_type"] = "SDAE"
     config_vals['model_name'] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
+    if os.path.exists(output_dir):
+        return
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
@@ -263,7 +265,7 @@ def main(input_dir: str, time_length, average_n):
 if __name__ == "__main__":
     SWEEP = True
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
-    time_lengths = [32, 64, 96]
+    time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
     i = 0
     if SWEEP:
