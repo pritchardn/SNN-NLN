@@ -4,6 +4,7 @@ import math
 import os
 
 import matplotlib.animation as animation
+import matplotlib.image
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -199,27 +200,33 @@ def plot_snn_results(original_images, test_masks_recon, snln_error_recon, infere
     axs[0, 2].set_title("SNLN", fontsize=5)
     axs[0, 3].set_title("Inference", fontsize=5)
     ims = []
-    for i in range(10):
-        axs[i, 0].imshow(plot_images[i, ..., 0], interpolation='nearest', aspect='auto')
-        axs[i, 1].imshow(plot_masks[i, ..., 0], interpolation='nearest', aspect='auto')
-        axs[i, 2].imshow(plot_snln[i, ..., 0], interpolation='nearest', aspect='auto')
-
-        for j in range(plot_inference.shape[1]):
+    for j in range(plot_inference.shape[1]):
+        for i in range(10):
+            axs[i, 0].imshow(plot_images[i, ..., 0], interpolation='nearest', aspect='auto')
+            axs[i, 1].imshow(plot_masks[i, ..., 0], interpolation='nearest', aspect='auto')
+            axs[i, 2].imshow(plot_snln[i, ..., 0], interpolation='nearest', aspect='auto')
             temp_im = np.moveaxis(plot_inference[i][j], 0, -1) * 127.5 + 127.5
-            im = axs[i, 3].imshow(temp_im, animated=True, interpolation='nearest', aspect='auto')
-            if j == 0:
-                axs[i, 3].imshow(temp_im, interpolation='nearest',
-                                 aspect='auto')  # show an initial one first
-            ims.append([im])
-        # axs[i, 3].imshow(plot_inference[i, ...], interpolation='nearest', aspect='auto')
-        axs[i, 0].axis('off')
-        axs[i, 1].axis('off')
-        axs[i, 2].axis('off')
-        axs[i, 3].axis('off')
-    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
-    plt.savefig(os.path.join(plot_directory, "results.png"), dpi=300)
-    ani.save(os.path.join(plot_directory, "results.gif"), writer='pillow', fps=10)
+            axs[i, 3].imshow(temp_im, interpolation='nearest', aspect='auto')
+            axs[i, 0].axis('off')
+            axs[i, 1].axis('off')
+            axs[i, 2].axis('off')
+            axs[i, 3].axis('off')
+        plt.savefig(os.path.join(plot_directory, "results_{}.png".format(j)), dpi=300)
     plt.close('all')
+    fig = plt.figure()
+    plt.axis('off')
+    fig.tight_layout()
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    for j in range(plot_inference.shape[1]):
+        ims.append(
+            [plt.imshow(
+                matplotlib.image.imread(os.path.join(plot_directory, "results_{}.png".format(j))),
+                animated=True, extent=[0, 1, 0, 1], interpolation='nearest', aspect='auto')])
+    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
+    ani.save(os.path.join(plot_directory, "results.gif"), writer='pillow', fps=10, dpi=300)
+    plt.close('all')
+    for j in range(plot_inference.shape[1] - 1):
+        os.remove(os.path.join(plot_directory, "results_{}.png".format(j)))
 
 
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
@@ -228,14 +235,14 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
         json.dump(snn_metrics, f, indent=4)
 
 
-def main(input_dir: str, time_length, average_n):
+def main(input_dir: str, time_length, average_n, skip_exists=True):
     config_vals = load_config(input_dir)
     config_vals['time_length'] = time_length
     config_vals['average_n'] = average_n
     config_vals["model_type"] = "SDAE"
     config_vals['model_name'] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
-    if os.path.exists(output_dir):
+    if skip_exists and os.path.exists(output_dir):
         return
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
@@ -263,7 +270,7 @@ def main(input_dir: str, time_length, average_n):
 
 
 if __name__ == "__main__":
-    SWEEP = True
+    SWEEP = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
@@ -276,4 +283,4 @@ if __name__ == "__main__":
                     main(input_dir, time_length, n)
     else:
         input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
-        main(input_dir, 32, 5)
+        main(input_dir, 32, 5, skip_exists=False)
