@@ -136,10 +136,15 @@ def load_ann_model(input_dir: str, config_vals: dict, test_dataset: torch.utils.
     return model
 
 
+def scale_image(image):
+    return (image - np.min(image)) / (np.max(image) - np.min(image))
+
+
 def snln(x_hat, test_dataset, average_n):
     # x_hat: [B, T, N, C, W, H]
     x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
     average_x_hat = np.vstack(np.mean(x_hat_trimmed, axis=1))
+    average_x_hat = scale_image(average_x_hat)
     images = test_dataset.dataset[:][1].cpu().detach().numpy()
     error = images - average_x_hat
     return error
@@ -271,7 +276,7 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
 
 
 if __name__ == "__main__":
-    SWEEP = True
+    SWEEP = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
