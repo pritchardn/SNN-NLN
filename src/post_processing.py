@@ -40,11 +40,7 @@ def collate_results(outputdir: str) -> list:
 
 
 def make_threshold_plot(results: pd.DataFrame):
-    print(results.head())
-    print(len(results))
     sub_results = results[pd.isna(results["excluded_rfi"])]
-    print(results["excluded_rfi"].unique())
-    print(len(sub_results))
     models = results["model_type"].unique()
     width = 0.25  # 1/len(models)
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
@@ -69,6 +65,11 @@ def make_threshold_plot(results: pd.DataFrame):
     for ax in axs:
         ax.set_xlabel("AOFlagger Threshold")
     plt.savefig("outputs/threshold_plot.png", dpi=300)
+    plt.close('all')
+
+
+def make_ood_plot(results: pd.DataFrame):
+    pass
 
 
 def collate_reuslts():
@@ -77,4 +78,6 @@ def collate_reuslts():
 
 
 if __name__ == "__main__":
-    make_threshold_plot(pd.read_csv("outputs/results.csv"))
+    results = pd.read_csv("outputs/results.csv")
+    make_threshold_plot(results)
+    make_ood_plot(results)
