@@ -48,6 +48,7 @@ def make_threshold_plot(results: pd.DataFrame):
     i = -1
     # TODO: Multiple trials and therefore std-dev error bars
     # TODO: Filter results for best time_length and average_n
+    # TODO: Better legend placement
     for model in models:
         model_results = sub_results[sub_results["model_type"] == model].groupby("threshold").mean(
             "auroc", "auprc", "f1")
