@@ -38,6 +38,10 @@ def collate_results(outputdir: str) -> list:
     return results
 
 
-if __name__ == "__main__":
+def collate_reuslts():
     results = collate_results("outputs")
     write_csv_output_from_dict("outputs", "results", results, results[0].keys())
+
+
+if __name__ == "__main__":
+    collate_reuslts()
