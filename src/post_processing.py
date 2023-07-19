@@ -58,7 +58,6 @@ def make_threshold_plot(results: pd.DataFrame):
         axs[2].bar(model_results.index + width / 2 * i, model_results["f1"], width=width,
                    label=model)
         i = -i
-        print(model_results)
     axs[0].legend()
     axs[0].set_ylabel("AUROC")
     axs[1].set_ylabel("AUPRC")
@@ -80,8 +79,6 @@ def make_ood_plot(results: pd.DataFrame):
     for model in models:
         model_results = sub_results[sub_results["model_type"] == model].groupby(
             "excluded_rfi").mean("auroc", "auprc", "f1").sort_values("excluded_rfi")
-        print(model_results.head())
-        print(model_results.index)
         axs[0].bar(index + width / 2 * i, model_results["auroc"], width=width,
                    label=model)
         axs[1].bar(index + width / 2 * i, model_results["auprc"], width=width,
@@ -101,6 +98,11 @@ def make_ood_plot(results: pd.DataFrame):
     plt.close('all')
 
 
+def make_inferencetime_plot(results: pd.DataFrame):
+    sub_results = results[results["model_type"] == "SDAE"]
+    print(len(sub_results))
+
+
 def collate_reuslts():
     result_set = collate_results("outputs")
     write_csv_output_from_dict("outputs", "results", result_set, result_set[0].keys())
@@ -110,3 +112,4 @@ if __name__ == "__main__":
     results = pd.read_csv("outputs/results.csv")
     make_threshold_plot(results)
     make_ood_plot(results)
+    make_inferencetime_plot(results)
