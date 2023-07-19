@@ -3,6 +3,7 @@ import json
 
 import pandas as pd
 import os
+import numpy as np
 import csv
 import matplotlib.pyplot as plt
 
@@ -50,11 +51,11 @@ def make_threshold_plot(results: pd.DataFrame):
     for model in models:
         model_results = sub_results[sub_results["model_type"] == model].groupby("threshold").mean(
             "auroc", "auprc", "f1")
-        axs[0].bar(model_results.index - width / 2 * i, model_results["auroc"], width=width,
+        axs[0].bar(model_results.index + width / 2 * i, model_results["auroc"], width=width,
                    label=model)
-        axs[1].bar(model_results.index - width / 2 * i, model_results["auprc"], width=width,
+        axs[1].bar(model_results.index + width / 2 * i, model_results["auprc"], width=width,
                    label=model)
-        axs[2].bar(model_results.index - width / 2 * i, model_results["f1"], width=width,
+        axs[2].bar(model_results.index + width / 2 * i, model_results["f1"], width=width,
                    label=model)
         i = -i
         print(model_results)
@@ -69,12 +70,40 @@ def make_threshold_plot(results: pd.DataFrame):
 
 
 def make_ood_plot(results: pd.DataFrame):
-    pass
+    sub_results = results[pd.notna(results["excluded_rfi"])]
+    models = results["model_type"].unique()
+    width = 0.25  # 1/len(models)
+
+    fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
+    i = -1
+    index = np.arange(len(sub_results["excluded_rfi"].unique()))
+    for model in models:
+        model_results = sub_results[sub_results["model_type"] == model].groupby(
+            "excluded_rfi").mean("auroc", "auprc", "f1").sort_values("excluded_rfi")
+        print(model_results.head())
+        print(model_results.index)
+        axs[0].bar(index + width / 2 * i, model_results["auroc"], width=width,
+                   label=model)
+        axs[1].bar(index + width / 2 * i, model_results["auprc"], width=width,
+                   label=model)
+        axs[2].bar(index + width / 2 * i, model_results["f1"], width=width,
+                   label=model)
+        i = -i
+
+    axs[0].legend()
+    axs[0].set_ylabel("AUROC")
+    axs[1].set_ylabel("AUPRC")
+    axs[2].set_ylabel("F1")
+    axs[2].set_xlabel("Excluded RFI")
+    axs[2].set_xticks(index)
+    axs[2].set_xticklabels(sub_results["excluded_rfi"].unique())
+    plt.savefig("outputs/ood_plot.png", dpi=300)
+    plt.close('all')
 
 
 def collate_reuslts():
-    results = collate_results("outputs")
-    write_csv_output_from_dict("outputs", "results", results, results[0].keys())
+    result_set = collate_results("outputs")
+    write_csv_output_from_dict("outputs", "results", result_set, result_set[0].keys())
 
 
 if __name__ == "__main__":
