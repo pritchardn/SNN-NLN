@@ -145,12 +145,9 @@ def calculate_metrics(model: Autoencoder,
                       neighbours: int, batch_size: int,
                       model_name: str, model_type: str, anomaly_type: str,
                       latent_dimension: int, original_size: int, patch_size: int = None,
-                      dataset='HERA'
+                      dataset='HERA',
+                      evaluate_run=False
                       ):
-    test_images_recon = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(),
-                                            original_size, patch_size)
-    test_masks_reconstructed = reconstruct_patches(
-        test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size)
     test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
                                                             patch_size)
     z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
@@ -158,10 +155,6 @@ def calculate_metrics(model: Autoencoder,
 
     x_hat = infer(model, test_dataset, batch_size, latent_dimension, False)
     x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
-    smoothed_x_hat = np.ones_like(x_hat)
-    for i in range(len(x_hat)):
-        smoothed_x_hat[i, 0, :, :] = remove_stripes(x_hat[i, 0, :, :])
-    x_hat_recon = reconstruct_patches(smoothed_x_hat, original_size, patch_size)
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
@@ -198,17 +191,26 @@ def calculate_metrics(model: Autoencoder,
 
     dist_metrics = _calculate_metrics(test_masks_original_reconstructed, dists_recon)
 
-    plot_final_images(ae_metrics, neighbours, model_type, anomaly_type, model_name,
-                      test_images_recon,
-                      test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
-                      combined_recon, x_hat_recon)
-    np.save(f'./outputs/{model_type}/{anomaly_type}/{model_name}/test_query.npy', z_query)
+    if not evaluate_run:
+        test_images_recon = reconstruct_patches(test_dataset.dataset[:][0].cpu().detach().numpy(),
+                                                original_size, patch_size)
+        test_masks_reconstructed = reconstruct_patches(
+            test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size)
+        smoothed_x_hat = np.ones_like(x_hat)
+        for i in range(len(x_hat)):
+            smoothed_x_hat[i, 0, :, :] = remove_stripes(x_hat[i, 0, :, :])
+        x_hat_recon = reconstruct_patches(smoothed_x_hat, original_size, patch_size)
+        plot_final_images(ae_metrics, neighbours, model_type, anomaly_type, model_name,
+                          test_images_recon,
+                          test_masks_reconstructed, error_recon, nln_error_recon, dists_recon,
+                          combined_recon, x_hat_recon)
+        np.save(f'./outputs/{model_type}/{anomaly_type}/{model_name}/test_query.npy', z_query)
     return ae_metrics, nln_metrics, dist_metrics, combined_metrics
 
 
 def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, batch_size,
                    latent_dimension, original_size, patch_size, model_name, model_type,
-                   anomaly_type, dataset):
+                   anomaly_type, dataset, evaluate_run=False):
     ae_metrics, nln_metrics, dist_metrics, combined_metrics = calculate_metrics(model, test_masks,
                                                                                 test_dataset,
                                                                                 train_dataset,
@@ -219,10 +221,12 @@ def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, b
                                                                                 anomaly_type,
                                                                                 latent_dimension,
                                                                                 original_size,
-                                                                                patch_size, dataset)
+                                                                                patch_size, dataset,
+                                                                                evaluate_run)
     # TODO: Move metric saving to outside
     save_metrics(ae_metrics, nln_metrics, dist_metrics, combined_metrics,
                  model_type, anomaly_type, model_name)
+    return nln_metrics
 
 
 def plot_loss_history(ae_history, disc_history, gen_history, outputdir):

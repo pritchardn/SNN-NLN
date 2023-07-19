@@ -25,7 +25,7 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
         predictions = auto_encoder(x).cpu().detach().numpy()
         plt.figure(figsize=(10, 10))
         for i in range(min(batch_size, 24)):
-            sub_range = int(math.sqrt(batch_size))
+            sub_range = int(math.ceil(math.sqrt(batch_size)))
             plt.subplot(sub_range, sub_range, i + 1)
             if predictions.shape[1] == 1:  # 1 channel only
                 plt.imshow(remove_stripes(predictions[i, 0, :, :]) * 127.5 + 127.5)
@@ -34,8 +34,8 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
                 plt.imshow(predictions[i, ...], vmin=0, vmax=1)
             plt.axis('off')
         x = x.cpu().detach().numpy()
-        for i in range(min(batch_size, 24), 48):
-            sub_range = int(math.sqrt(batch_size))
+        for i in range(min(batch_size, 24)):
+            sub_range = int(math.ceil(math.sqrt(batch_size)))
             plt.subplot(sub_range, sub_range, i + 1)
             if x.shape[1] == 1:
                 plt.imshow(x[i - min(batch_size, 24), 0, :, :] * 127.5 + 127.5)
