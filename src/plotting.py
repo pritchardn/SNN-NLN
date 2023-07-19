@@ -34,7 +34,8 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
                 plt.imshow(predictions[i, ...], vmin=0, vmax=1)
             plt.axis('off')
         x = x.cpu().detach().numpy()
-        for i in range(min(batch_size, 24)):
+        for i in range(min(batch_size, 24)): # , 48
+            # TODO: Get the range back up to 24 so both panes are visible
             sub_range = int(math.ceil(math.sqrt(batch_size)))
             plt.subplot(sub_range, sub_range, i + 1)
             if x.shape[1] == 1:
