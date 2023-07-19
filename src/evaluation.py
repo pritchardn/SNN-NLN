@@ -11,6 +11,7 @@ from torch import nn
 from config import DEVICE
 from data import reconstruct_patches, reconstruct_latent_patches
 from models import Autoencoder
+from plotting import remove_stripes
 
 
 def infer(model: nn.Module, dataset: torch.utils.data.DataLoader, batch_size: int,
@@ -59,7 +60,6 @@ def plot_final_images(metrics: dict, neighbour: int, model_type: str,
     distrubtions_reconstructed = np.moveaxis(distrubtions_reconstructed, 1, -1)
     combined_reconstructed = np.moveaxis(combined_reconstructed, 1, -1)
     latent_reconstructed = np.moveaxis(latent_reconstructed, 1, -1)
-
     for i in range(10):
         r = np.random.randint(len(test_images_reconstructed))
         axs[i, 0].imshow(test_images_reconstructed[r, ..., 0].astype(np.float32), vmin=0, vmax=1,
@@ -158,7 +158,10 @@ def calculate_metrics(model: Autoencoder,
 
     x_hat = infer(model, test_dataset, batch_size, latent_dimension, False)
     x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
-    x_hat_recon = reconstruct_patches(x_hat, original_size, patch_size)
+    smoothed_x_hat = np.ones_like(x_hat)
+    for i in range(len(x_hat)):
+        smoothed_x_hat[i, 0, :, :] = remove_stripes(x_hat[i, 0, :, :])
+    x_hat_recon = reconstruct_patches(smoothed_x_hat, original_size, patch_size)
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
