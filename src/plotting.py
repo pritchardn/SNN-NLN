@@ -1,11 +1,21 @@
 import math
 import os
+import numpy as np
 
 import torch.nn as nn
 import wandb
 from matplotlib import pyplot as plt
 from torch.utils.data import TensorDataset
 from config import WANDB_ACTIVE, DEVICE
+
+
+def remove_stripes(image: np.ndarray):
+    temp = np.array(image, copy=True)
+    # Replace rightmost column with left neighbour
+    temp[-1, :] = temp[-2, :]
+    # Replace bottom row with upper neighbour
+    temp[:, -1] = temp[:, -2]
+    return temp
 
 
 def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int,
@@ -18,7 +28,7 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
             sub_range = int(math.sqrt(batch_size))
             plt.subplot(sub_range, sub_range, i + 1)
             if predictions.shape[1] == 1:  # 1 channel only
-                plt.imshow(predictions[i, 0, :, :] * 127.5 + 127.5)
+                plt.imshow(remove_stripes(predictions[i, 0, :, :]) * 127.5 + 127.5)
 
             if predictions.shape[1] == 3:  # RGB
                 plt.imshow(predictions[i, ...], vmin=0, vmax=1)
