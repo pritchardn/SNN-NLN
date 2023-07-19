@@ -99,8 +99,31 @@ def make_ood_plot(results: pd.DataFrame):
 
 
 def make_inferencetime_plot(results: pd.DataFrame):
-    sub_results = results[results["model_type"] == "SDAE"]
+    filter = (results.model_type == "SDAE") & (results.excluded_rfi.isna()) & (
+                results.threshold == 10) & (results.latent_dimension == 32) & (
+                         results.num_layers == 2)
+    sub_results = results[filter]
     print(len(sub_results))
+    fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
+    width = 0.5 # 1/len(sub_results["average_n"].unique())
+    i = -1
+    for time_length in sub_results["time_length"].unique():
+        inference_results = sub_results[sub_results["time_length"] == time_length]
+        inference_results = inference_results.groupby("average_n").mean("auroc", "auprc", "f1")
+        axs[0].bar(inference_results.index + width / 2 * i, inference_results["auroc"], width=width,
+                   label=time_length)
+        axs[1].bar(inference_results.index + width / 2 * i, inference_results["auprc"], width=width,
+                   label=time_length)
+        axs[2].bar(inference_results.index + width / 2 * i, inference_results["f1"], width=width,
+                   label=time_length)
+        i = -i
+    axs[0].legend()
+    axs[0].set_ylabel("AUROC")
+    axs[1].set_ylabel("AUPRC")
+    axs[2].set_ylabel("F1")
+    axs[2].set_xlabel("Slice Length")
+    axs[2].set_xticks(sub_results["average_n"].unique())
+    plt.show()
 
 
 def collate_reuslts():
