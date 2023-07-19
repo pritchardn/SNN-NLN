@@ -123,7 +123,8 @@ def make_inferencetime_plot(results: pd.DataFrame):
     axs[2].set_ylabel("F1")
     axs[2].set_xlabel("Slice Length")
     axs[2].set_xticks(sub_results["average_n"].unique())
-    plt.show()
+    plt.savefig("outputs/inferencetime_plot.png", dpi=300)
+    plt.close('all')
 
 
 def collate_reuslts():
