@@ -170,7 +170,7 @@ def main(config_vals: dict):
 def run_trial(trial: optuna.Trial):
     latent_dimension = trial.suggest_int('latent_dimension', 32, 64, 16)
     config_vals = {'batch_size': trial.suggest_int('batch_size', 16, 128, 16),
-                   'epochs': trial.suggest_int('epochs', 2, 3),
+                   'epochs': trial.suggest_int('epochs', 2, 128),
                    'ae_learning_rate': trial.suggest_float('ae_learning_rate', 1e-5, 1e-3),
                    'gen_learning_rate': trial.suggest_float('gen_learning_rate', 1e-5, 1e-3),
                    'disc_learning_rate': trial.suggest_float('disc_learning_rate', 1e-5, 1e-3),
@@ -226,7 +226,7 @@ def run_trial(trial: optuna.Trial):
         auto_encoder.decoder.parameters(),
         lr=config_vals['gen_learning_rate'])
     # Train model
-    f1_score, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history = \
+    mse, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history = \
         train_model(
             auto_encoder, discriminator, train_dataset,
             ae_optimizer, disc_optimizer,
@@ -247,13 +247,13 @@ def run_trial(trial: optuna.Trial):
                              config_vals.get("anomaly_type"), config_vals.get("dataset"))
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, 'autoencoder.pt'))
     save_config(config_vals, output_dir)
-    f1_score = metrics['mse']
-    return f1_score
+    mse = metrics['mse']
+    return mse
 
 
 def main_optuna():
     study = optuna.create_study(direction="minimize")
-    study.optimize(run_trial, n_trials=10)
+    study.optimize(run_trial, n_trials=64)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
