@@ -103,6 +103,7 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
             if metrics['f1'] == np.nan:
                 metrics['f1'] = 0.0
             trial.report(metrics['f1'], t)
+            print(f"F1:\t{metrics['f1']}")
             if trial.should_prune():
                 raise optuna.TrialPruned()
     return metrics['f1'], auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
@@ -174,7 +175,7 @@ def main(config_vals: dict):
 def run_trial(trial: optuna.Trial):
     latent_dimension = trial.suggest_int('latent_dimension', 16, 64, 16)
     config_vals = {'batch_size': trial.suggest_int('batch_size', 16, 128, 16),
-                   'epochs': trial.suggest_int('epochs', 48, 128),
+                   'epochs': trial.suggest_int('epochs', 2, 3),
                    'ae_learning_rate': trial.suggest_float('ae_learning_rate', 1e-5, 1e-3),
                    'gen_learning_rate': trial.suggest_float('gen_learning_rate', 1e-5, 1e-3),
                    'disc_learning_rate': trial.suggest_float('disc_learning_rate', 1e-5, 1e-3),
@@ -256,7 +257,7 @@ def run_trial(trial: optuna.Trial):
 
 def main_optuna():
     study = optuna.create_study(direction="maximize")
-    study.optimize(run_trial, n_trials=10)
+    study.optimize(run_trial, n_trials=1)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
@@ -273,15 +274,25 @@ def main_optuna():
     print("  Params: ")
     for key, value in trial.params.items():
         print("    {}: {}".format(key, value))
-    with open('best_trial.json', 'w') as f:
+    with open(f'outputs{os.sep}best_trial.json', 'w') as f:
         json.dump(trial.params, f, indent=4)
+    with open(f'outputs{os.sep}completed_trials.json', 'w') as f:
+        completed_trials_out = []
+        for trial_params in complete_trials:
+            completed_trials_out.append(trial_params.params)
+        json.dump(completed_trials_out, f, indent=4)
+    with open(f'outputs{os.sep}pruned_trials.json', 'w') as f:
+        pruned_trials_out = []
+        for trial_params in pruned_trials:
+            pruned_trials_out.append(trial_params.params)
+        json.dump(pruned_trials_out, f, indent=4)
 
 
 def main_standard():
-    SWEEP = True
+    SWEEP = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, 'rfi_stations', 'rfi_dtv', 'rfi_impulse', 'rfi_scatter']
-    config_vals = {'batch_size': 64, 'epochs': 120, 'ae_learning_rate': 1e-4,
+    config_vals = {'batch_size': 64, 'epochs': 2, 'ae_learning_rate': 1e-4,
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
