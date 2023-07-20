@@ -1,16 +1,14 @@
 import json
 import os
 
-import numpy as np
 import optuna
-
 import torch
 import wandb
-
 from optuna.trial import TrialState
+
 from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
-from evaluation import evaluate_model, plot_loss_history
+from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
 from plotting import plot_intermediate_images
@@ -51,11 +49,11 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
 def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_optimizer,
                 generator_optimizer, epochs, model_type, output_dir,
                 config_vals=None, test_dataset=None, test_masks_original=None, train_x=None,
-                trial: optuna.Trial=None):
+                trial: optuna.Trial = None):
     ae_loss_history = []
     disc_loss_history = []
     gen_loss_history = []
-    metrics = {}
+    metrics = {'mse': 1.0}
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-----------")
         running_ae_loss = 0.0
@@ -92,25 +90,22 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         plot_intermediate_images(auto_encoder, train_dataset, t + 1, model_type, output_dir,
                                  train_dataset.batch_size)
         if config_vals is not None and test_dataset is not None and test_masks_original is not None and train_x is not None and trial is not None:
-            metrics = evaluate_model(auto_encoder, test_masks_original, test_dataset, train_dataset,
-                                     config_vals.get('neighbours'), config_vals.get('batch_size'),
-                                     config_vals.get('latent_dimension'),
-                                     train_x[0].shape[0], config_vals.get('patch_size'),
-                                     config_vals['model_name'],
-                                     config_vals['model_type'],
-                                     config_vals.get("anomaly_type"), config_vals.get("dataset"),
-                                     evaluate_run=True)
-            if metrics['f1'] == np.nan:
-                metrics['f1'] = 0.0
-            trial.report(metrics['f1'], t)
-            print(f"F1:\t{metrics['f1']}")
+            metrics = mid_run_calculate_metrics(auto_encoder, test_masks_original, test_dataset, train_dataset,
+                                                config_vals['neighbours'],
+                                                config_vals['batch_size'],
+                                                config_vals['latent_dimension'],
+                                                train_x[0].shape[0], config_vals['patch_size'])
+            trial.report(metrics['mse'], t)
+            print(f"mse:\t{metrics['mse']}")
             if trial.should_prune():
                 raise optuna.TrialPruned()
-    return metrics['f1'], auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
+    return metrics[
+        'mse'], auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
 
 
 def main(config_vals: dict):
     config_vals['model_name'] = generate_model_name(config_vals)
+    print(config_vals['model_name'])
     output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
                  f'{config_vals["model_name"]}/'
     if WANDB_ACTIVE:
@@ -173,7 +168,7 @@ def main(config_vals: dict):
 
 
 def run_trial(trial: optuna.Trial):
-    latent_dimension = trial.suggest_int('latent_dimension', 16, 64, 16)
+    latent_dimension = trial.suggest_int('latent_dimension', 32, 64, 16)
     config_vals = {'batch_size': trial.suggest_int('batch_size', 16, 128, 16),
                    'epochs': trial.suggest_int('epochs', 2, 3),
                    'ae_learning_rate': trial.suggest_float('ae_learning_rate', 1e-5, 1e-3),
@@ -244,20 +239,21 @@ def run_trial(trial: optuna.Trial):
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
     # Test model
     metrics = evaluate_model(auto_encoder, test_masks_original, test_dataset, train_dataset,
-                   config_vals.get('neighbours'), config_vals.get('batch_size'),
-                   config_vals.get('latent_dimension'),
-                   train_x[0].shape[0], config_vals.get('patch_size'), config_vals['model_name'],
-                   config_vals['model_type'],
-                   config_vals.get("anomaly_type"), config_vals.get("dataset"))
+                             config_vals.get('neighbours'), config_vals.get('batch_size'),
+                             config_vals.get('latent_dimension'),
+                             train_x[0].shape[0], config_vals.get('patch_size'),
+                             config_vals['model_name'],
+                             config_vals['model_type'],
+                             config_vals.get("anomaly_type"), config_vals.get("dataset"))
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, 'autoencoder.pt'))
     save_config(config_vals, output_dir)
-    f1_score = metrics['f1']
+    f1_score = metrics['mse']
     return f1_score
 
 
 def main_optuna():
-    study = optuna.create_study(direction="maximize")
-    study.optimize(run_trial, n_trials=1)
+    study = optuna.create_study(direction="minimize")
+    study.optimize(run_trial, n_trials=10)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 

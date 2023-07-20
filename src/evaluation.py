@@ -5,7 +5,8 @@ import faiss
 import matplotlib.pyplot as plt
 import numpy as np
 import torch.utils.data
-from sklearn.metrics import roc_curve, auc, precision_recall_curve
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, mean_squared_error, \
+    balanced_accuracy_score
 from torch import nn
 
 from config import DEVICE
@@ -94,16 +95,18 @@ def get_error_dataset(images: torch.utils.data.DataLoader, x_hat: np.ndarray, im
 
 
 def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray):
-    if error_recon.shape[1] == 1:
-        error_recon = np.moveaxis(error_recon, 1, -1)
+    # if error_recon.shape[1] == 1:
+    #     error_recon = np.moveaxis(error_recon, 1, -1)
     fpr, tpr, thr = roc_curve(test_masks_orig_recon.flatten() > 0, error_recon.flatten())
+    acc = balanced_accuracy_score(test_masks_orig_recon.flatten() > 0, error_recon.flatten() > 0)
+    mse = mean_squared_error(test_masks_orig_recon.flatten(), error_recon.flatten())
     true_auroc = auc(fpr, tpr)
     precision, recall, thresholds = precision_recall_curve(test_masks_orig_recon.flatten() > 0,
                                                            error_recon.flatten())
     true_auprc = auc(recall, precision)
     f1 = 2 * recall * precision / (recall + precision)
     true_f1 = np.max(f1)
-    return {'auroc': true_auroc, 'auprc': true_auprc, 'f1': true_f1}
+    return {'auroc': true_auroc, 'auprc': true_auprc, 'f1': true_f1, 'mse': mse, 'acc': acc}
 
 
 def nln(z, z_query, neighbours):
@@ -206,6 +209,35 @@ def calculate_metrics(model: Autoencoder,
                           combined_recon, x_hat_recon)
         np.save(f'./outputs/{model_type}/{anomaly_type}/{model_name}/test_query.npy', z_query)
     return ae_metrics, nln_metrics, dist_metrics, combined_metrics
+
+
+def mid_run_calculate_metrics(model: Autoencoder,
+                              test_masks_original: np.ndarray,
+                              test_dataset: torch.utils.data.DataLoader,
+                              train_dataset: torch.utils.data.DataLoader,
+                              neighbours: int, batch_size: int,
+                              latent_dimension: int, original_size: int, patch_size: int = None):
+    test_masks_original_reconstructed = reconstruct_patches(test_masks_original, original_size,
+                                                            patch_size)
+    z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
+    z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
+
+    x_hat = infer(model, test_dataset, batch_size, latent_dimension, False)
+    x_hat_train = infer(model, train_dataset, batch_size, latent_dimension, False)
+
+    neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
+    nln_error = nln_errors(test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask)
+
+    if patch_size:
+        if nln_error.ndim == 4:
+            nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+        else:
+            nln_error_recon = reconstruct_latent_patches(nln_error, original_size, patch_size)
+    else:
+        nln_error_recon = nln_error
+
+    nln_metrics = _calculate_metrics(test_masks_original_reconstructed, nln_error_recon)
+    return nln_metrics
 
 
 def evaluate_model(model, test_masks, test_dataset, train_dataset, neighbours, batch_size,
