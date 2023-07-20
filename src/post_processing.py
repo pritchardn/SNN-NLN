@@ -22,6 +22,8 @@ def collate_results(outputdir: str) -> list:
     results = []
     for model in MODELS:
         model_outputdir = os.path.join(outputdir, model, "MISO")
+        if not os.path.exists(model_outputdir):
+            continue
         for filename in os.listdir(model_outputdir):
             trial_vals = {}
             config_filename = os.path.join(model_outputdir, filename, 'config.json')
@@ -134,6 +136,7 @@ def collate_reuslts():
 
 
 if __name__ == "__main__":
+    collate_reuslts()
     results = pd.read_csv("outputs/results.csv")
     make_threshold_plot(results)
     make_ood_plot(results)
