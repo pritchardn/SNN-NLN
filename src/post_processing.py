@@ -1,13 +1,10 @@
-import glob
-import json
-
-import pandas as pd
-import os
-import numpy as np
 import csv
-import matplotlib.pyplot as plt
+import json
+import os
 
-from utils import model_name_to_config_vals
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 MODELS = ["SDAE", "DAE"]
 
@@ -26,15 +23,18 @@ def collate_results(outputdir: str) -> list:
     for model in MODELS:
         model_outputdir = os.path.join(outputdir, model, "MISO")
         for filename in os.listdir(model_outputdir):
-            trial_vals = model_name_to_config_vals(filename)
-            for result_filename in glob.glob(
-                    os.path.join(model_outputdir, filename, 'metrics.json')):
-                with open(result_filename, 'r') as f:
-                    result_data = json.load(f)
-                    if "nln" in result_data:
-                        trial_vals.update(result_data["nln"])
-                    else:
-                        trial_vals.update(result_data)
+            trial_vals = {}
+            config_filename = os.path.join(model_outputdir, filename, 'config.json')
+            with open(config_filename, 'r') as f:
+                config_data = json.load(f)
+                trial_vals.update(config_data)
+            metric_filename = os.path.join(model_outputdir, filename, 'metrics.json')
+            with open(metric_filename, 'r') as f:
+                result_data = json.load(f)
+                if "nln" in result_data:
+                    trial_vals.update(result_data["nln"])
+                else:
+                    trial_vals.update(result_data)
             print(trial_vals)
             results.append(trial_vals)
     return results
@@ -101,12 +101,12 @@ def make_ood_plot(results: pd.DataFrame):
 
 def make_inferencetime_plot(results: pd.DataFrame):
     filter = (results.model_type == "SDAE") & (results.excluded_rfi.isna()) & (
-                results.threshold == 10) & (results.latent_dimension == 32) & (
-                         results.num_layers == 2)
+            results.threshold == 10) & (results.latent_dimension == 32) & (
+                     results.num_layers == 2)
     sub_results = results[filter]
     print(len(sub_results))
     fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
-    width = 0.5 # 1/len(sub_results["average_n"].unique())
+    width = 0.5  # 1/len(sub_results["average_n"].unique())
     i = -1
     for time_length in sub_results["time_length"].unique():
         inference_results = sub_results[sub_results["time_length"] == time_length]
