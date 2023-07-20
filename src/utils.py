@@ -1,5 +1,7 @@
 import os
 
+from coolname import generate_slug
+
 
 def generate_model_name(config_vals: dict):
     model_name = f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_' \
@@ -12,6 +14,7 @@ def generate_model_name(config_vals: dict):
         model_name += f'_{config_vals["time_length"]}'
     if config_vals['average_n']:
         model_name += f'_{config_vals["average_n"]}'
+    model_name += f'_{generate_slug(2)}'
     return model_name
 
 
