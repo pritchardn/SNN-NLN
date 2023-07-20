@@ -296,7 +296,8 @@ def main_standard():
                    'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
                    'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
                    'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
-                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None}
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None,
+                   'time_length': None, 'average_n': None}
     if SWEEP:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
