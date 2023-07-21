@@ -9,9 +9,11 @@ import pandas as pd
 MODELS = ["SDAE", "DAE"]
 
 
-def write_csv_output_from_dict(outputdir: str, filename: str, data: list, headers: list):
+def write_csv_output_from_dict(
+    outputdir: str, filename: str, data: list, headers: list
+):
     os.makedirs(outputdir, exist_ok=True)
-    with open(f"{outputdir}{os.sep}{filename}.csv", 'w') as ofile:
+    with open(f"{outputdir}{os.sep}{filename}.csv", "w") as ofile:
         csv_writer = csv.DictWriter(ofile, fieldnames=headers)
         csv_writer.writeheader()
         for row in data:
@@ -26,14 +28,14 @@ def collate_results(outputdir: str) -> list:
             continue
         for filename in os.listdir(model_outputdir):
             trial_vals = {}
-            config_filename = os.path.join(model_outputdir, filename, 'config.json')
+            config_filename = os.path.join(model_outputdir, filename, "config.json")
             if not os.path.exists(config_filename):
                 continue
-            with open(config_filename, 'r') as f:
+            with open(config_filename, "r") as f:
                 config_data = json.load(f)
                 trial_vals.update(config_data)
-            metric_filename = os.path.join(model_outputdir, filename, 'metrics.json')
-            with open(metric_filename, 'r') as f:
+            metric_filename = os.path.join(model_outputdir, filename, "metrics.json")
+            with open(metric_filename, "r") as f:
                 result_data = json.load(f)
                 if "nln" in result_data:
                     trial_vals.update(result_data["nln"])
@@ -54,14 +56,29 @@ def make_threshold_plot(results: pd.DataFrame):
     # TODO: Filter results for best time_length and average_n
     # TODO: Better legend placement
     for model in models:
-        model_results = sub_results[sub_results["model_type"] == model].groupby("threshold").mean(
-            "auroc", "auprc", "f1")
-        axs[0].bar(model_results.index + width / 2 * i, model_results["auroc"], width=width,
-                   label=model)
-        axs[1].bar(model_results.index + width / 2 * i, model_results["auprc"], width=width,
-                   label=model)
-        axs[2].bar(model_results.index + width / 2 * i, model_results["f1"], width=width,
-                   label=model)
+        model_results = (
+            sub_results[sub_results["model_type"] == model]
+            .groupby("threshold")
+            .mean("auroc", "auprc", "f1")
+        )
+        axs[0].bar(
+            model_results.index + width / 2 * i,
+            model_results["auroc"],
+            width=width,
+            label=model,
+        )
+        axs[1].bar(
+            model_results.index + width / 2 * i,
+            model_results["auprc"],
+            width=width,
+            label=model,
+        )
+        axs[2].bar(
+            model_results.index + width / 2 * i,
+            model_results["f1"],
+            width=width,
+            label=model,
+        )
         i = -i
     axs[0].legend()
     axs[0].set_ylabel("AUROC")
@@ -70,7 +87,7 @@ def make_threshold_plot(results: pd.DataFrame):
     for ax in axs:
         ax.set_xlabel("AOFlagger Threshold")
     plt.savefig("outputs/threshold_plot.png", dpi=300)
-    plt.close('all')
+    plt.close("all")
 
 
 def make_ood_plot(results: pd.DataFrame):
@@ -82,14 +99,19 @@ def make_ood_plot(results: pd.DataFrame):
     i = -1
     index = np.arange(len(sub_results["excluded_rfi"].unique()))
     for model in models:
-        model_results = sub_results[sub_results["model_type"] == model].groupby(
-            "excluded_rfi").mean("auroc", "auprc", "f1").sort_values("excluded_rfi")
-        axs[0].bar(index + width / 2 * i, model_results["auroc"], width=width,
-                   label=model)
-        axs[1].bar(index + width / 2 * i, model_results["auprc"], width=width,
-                   label=model)
-        axs[2].bar(index + width / 2 * i, model_results["f1"], width=width,
-                   label=model)
+        model_results = (
+            sub_results[sub_results["model_type"] == model]
+            .groupby("excluded_rfi")
+            .mean("auroc", "auprc", "f1")
+            .sort_values("excluded_rfi")
+        )
+        axs[0].bar(
+            index + width / 2 * i, model_results["auroc"], width=width, label=model
+        )
+        axs[1].bar(
+            index + width / 2 * i, model_results["auprc"], width=width, label=model
+        )
+        axs[2].bar(index + width / 2 * i, model_results["f1"], width=width, label=model)
         i = -i
 
     axs[0].legend()
@@ -100,13 +122,17 @@ def make_ood_plot(results: pd.DataFrame):
     axs[2].set_xticks(index)
     axs[2].set_xticklabels(sub_results["excluded_rfi"].unique())
     plt.savefig("outputs/ood_plot.png", dpi=300)
-    plt.close('all')
+    plt.close("all")
 
 
 def make_inferencetime_plot(results: pd.DataFrame):
-    filter = (results.model_type == "SDAE") & (results.excluded_rfi.isna()) & (
-            results.threshold == 10) & (results.latent_dimension == 32) & (
-                     results.num_layers == 2)
+    filter = (
+        (results.model_type == "SDAE")
+        & (results.excluded_rfi.isna())
+        & (results.threshold == 10)
+        & (results.latent_dimension == 32)
+        & (results.num_layers == 2)
+    )
     sub_results = results[filter]
     print(len(sub_results))
     fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
@@ -114,13 +140,27 @@ def make_inferencetime_plot(results: pd.DataFrame):
     i = -1
     for time_length in sub_results["time_length"].unique():
         inference_results = sub_results[sub_results["time_length"] == time_length]
-        inference_results = inference_results.groupby("average_n").mean("auroc", "auprc", "f1")
-        axs[0].bar(inference_results.index + width / 2 * i, inference_results["auroc"], width=width,
-                   label=time_length)
-        axs[1].bar(inference_results.index + width / 2 * i, inference_results["auprc"], width=width,
-                   label=time_length)
-        axs[2].bar(inference_results.index + width / 2 * i, inference_results["f1"], width=width,
-                   label=time_length)
+        inference_results = inference_results.groupby("average_n").mean(
+            "auroc", "auprc", "f1"
+        )
+        axs[0].bar(
+            inference_results.index + width / 2 * i,
+            inference_results["auroc"],
+            width=width,
+            label=time_length,
+        )
+        axs[1].bar(
+            inference_results.index + width / 2 * i,
+            inference_results["auprc"],
+            width=width,
+            label=time_length,
+        )
+        axs[2].bar(
+            inference_results.index + width / 2 * i,
+            inference_results["f1"],
+            width=width,
+            label=time_length,
+        )
         i = -i
     axs[0].legend()
     axs[0].set_ylabel("AUROC")
@@ -129,7 +169,7 @@ def make_inferencetime_plot(results: pd.DataFrame):
     axs[2].set_xlabel("Slice Length")
     axs[2].set_xticks(sub_results["average_n"].unique())
     plt.savefig("outputs/inferencetime_plot.png", dpi=300)
-    plt.close('all')
+    plt.close("all")
 
 
 def collate_reuslts():

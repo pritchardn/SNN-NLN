@@ -18,8 +18,14 @@ def remove_stripes(image: np.ndarray):
     return temp
 
 
-def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, epoch: int,
-                             title: str, outputdir: str, batch_size: int):
+def plot_intermediate_images(
+    auto_encoder: nn.Module,
+    dataset: TensorDataset,
+    epoch: int,
+    title: str,
+    outputdir: str,
+    batch_size: int,
+):
     for batch, (x, y) in enumerate(dataset):
         x = x.to(DEVICE)
         predictions = auto_encoder(x).cpu().detach().numpy()
@@ -32,15 +38,15 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
 
             if predictions.shape[1] == 3:  # RGB
                 plt.imshow(predictions[i, ...], vmin=0, vmax=1)
-            plt.axis('off')
+            plt.axis("off")
         x = x.cpu().detach().numpy()
-        for i in range(min(batch_size, 24)): # , 48
+        for i in range(min(batch_size, 24)):  # , 48
             # TODO: Get the range back up to 24 so both panes are visible
             sub_range = int(math.ceil(math.sqrt(batch_size)))
             plt.subplot(sub_range, sub_range, i + 1)
             if x.shape[1] == 1:
                 plt.imshow(x[i - min(batch_size, 24), 0, :, :] * 127.5 + 127.5)
-            plt.axis('off')
+            plt.axis("off")
 
         output_path = os.path.join(outputdir, "results")
         os.makedirs(output_path, exist_ok=True)
@@ -48,6 +54,6 @@ def plot_intermediate_images(auto_encoder: nn.Module, dataset: TensorDataset, ep
         plt.tight_layout()
         plt.savefig(plot_filename)
         if WANDB_ACTIVE:
-            wandb.log({'example-reconstruction': wandb.Image(plot_filename)})
-        plt.close('all')
+            wandb.log({"example-reconstruction": wandb.Image(plot_filename)})
+        plt.close("all")
         break

@@ -18,8 +18,12 @@ def limit_entries(image_data, masks, limit: int):
 
 
 def clip_data(image_data, masks):
-    _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(image_data[np.invert(masks)])
-    _min = np.absolute(np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)]))
+    _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(
+        image_data[np.invert(masks)]
+    )
+    _min = np.absolute(
+        np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)])
+    )
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
     mi, ma = np.min(image_data), np.max(image_data)
@@ -34,17 +38,21 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
 
         aoflagger = aof.AOFlagger()
         strategy = None
-        if mode == 'HERA':
+        if mode == "HERA":
             strategy = aoflagger.load_strategy_file(
-                f'data{os.sep}flagging{os.sep}hera_{threshold}.lua')
-        elif mode == 'LOFAR':
+                f"data{os.sep}flagging{os.sep}hera_{threshold}.lua"
+            )
+        elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
-                f'data{os.sep}flagging{os.sep}lofar-default-{threshold}.lua')
+                f"data{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+            )
         if not strategy:
             return None
         # LOAD data into AOFlagger structure
         for indx in tqdm(range(len(image_data))):
-            _data = aoflagger.make_image_set(image_data.shape[1], image_data.shape[2], 1)
+            _data = aoflagger.make_image_set(
+                image_data.shape[1], image_data.shape[2], 1
+            )
             _data.set_image_buffer(0, image_data[indx, ..., 0])  # Real values
 
             flags = strategy.run(_data)
@@ -71,14 +79,23 @@ def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
     t = images.transpose(0, 3, 2, 1)
     n_patches = original_size // kernel_size
     recon = np.empty(
-        [images.shape[0] // n_patches ** 2, kernel_size * n_patches, kernel_size * n_patches,
-         images.shape[1]])
+        [
+            images.shape[0] // n_patches ** 2,
+            kernel_size * n_patches,
+            kernel_size * n_patches,
+            images.shape[1],
+        ]
+    )
 
     start, counter, indx, b = 0, 0, 0, []
 
     for i in range(n_patches, images.shape[0] + 1, n_patches):
-        b.append(np.reshape(np.stack(t[start:i, ...], axis=0),
-                            (n_patches * kernel_size, kernel_size, images.shape[1])))
+        b.append(
+            np.reshape(
+                np.stack(t[start:i, ...], axis=0),
+                (n_patches * kernel_size, kernel_size, images.shape[1]),
+            )
+        )
         start = i
         counter += 1
         if counter == n_patches:
@@ -102,28 +119,41 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     return recon
 
 
-def load_data(excluded_rfi=None, data_path='data'):
+def load_data(excluded_rfi=None, data_path="data"):
     if excluded_rfi is None:
         rfi_models = []
-        file_path = os.path.join(data_path, 'HERA_04-03-2022_all.pkl')
+        file_path = os.path.join(data_path, "HERA_04-03-2022_all.pkl")
         train_x, train_y, test_x, test_y = np.load(file_path, allow_pickle=True)
     else:
-        rfi_models = ['rfi_stations', 'rfi_dtv', 'rfi_impulse', 'rfi_scatter']
+        rfi_models = ["rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
         rfi_models.remove(excluded_rfi)
-        test_file_path = os.path.join(data_path, f'HERA_04-03-2022_{excluded_rfi}.pkl')
+        test_file_path = os.path.join(data_path, f"HERA_04-03-2022_{excluded_rfi}.pkl")
         _, _, test_x, test_y = np.load(test_file_path, allow_pickle=True)
 
-        train_file_path = os.path.join(data_path, f'HERA_04-03-2022_{"-".join(rfi_models)}.pkl')
+        train_file_path = os.path.join(
+            data_path, f'HERA_04-03-2022_{"-".join(rfi_models)}.pkl'
+        )
         train_x, train_y, _, _ = np.load(train_file_path, allow_pickle=True)
     train_x[train_x == np.inf] = np.finfo(train_x.dtype).max
     test_x[test_x == np.inf] = np.finfo(test_x.dtype).max
-    test_x = test_x.astype('float32')
-    train_x = train_x.astype('float32')
+    test_x = test_x.astype("float32")
+    train_x = train_x.astype("float32")
     return train_x, train_y, test_x, test_y, rfi_models
 
 
-def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=None, threshold=None,
-                         patch_size=None, stride=None, filter=False, get_orig=False):
+def process_into_dataset(
+    x_data,
+    y_data,
+    batch_size,
+    mode,
+    shuffle=True,
+    limit=None,
+    threshold=None,
+    patch_size=None,
+    stride=None,
+    filter=False,
+    get_orig=False,
+):
     x_data, y_data = limit_entries(x_data, y_data, limit)
     if get_orig:
         y_data_orig = copy.deepcopy(y_data)
@@ -157,5 +187,7 @@ def process_into_dataset(x_data, y_data, batch_size, mode, shuffle=True, limit=N
         x_data = torch.from_numpy(x_data)
         y_data = torch.from_numpy(y_data)
     dset = TensorDataset(x_data, y_data)
-    return torch.utils.data.DataLoader(dset, batch_size=batch_size,
-                                       shuffle=shuffle), y_data_orig
+    return (
+        torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle),
+        y_data_orig,
+    )
