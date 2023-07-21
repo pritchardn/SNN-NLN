@@ -277,9 +277,9 @@ def main_sweep_threshold(num_trials: int = 10):
     }
     threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
     for threshold in threshold_range:
+        config_vals["threshold"] = threshold
         for t in range(1, num_trials + 1):
             config_vals["trial"] = t
-            config_vals["threshold"] = threshold
             print(generate_model_name(config_vals))
             main(config_vals)
 
