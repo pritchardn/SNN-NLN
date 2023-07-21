@@ -27,6 +27,8 @@ def collate_results(outputdir: str) -> list:
         for filename in os.listdir(model_outputdir):
             trial_vals = {}
             config_filename = os.path.join(model_outputdir, filename, 'config.json')
+            if not os.path.exists(config_filename):
+                continue
             with open(config_filename, 'r') as f:
                 config_data = json.load(f)
                 trial_vals.update(config_data)
