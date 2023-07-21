@@ -10,7 +10,6 @@ from data import load_data, process_into_dataset
 from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import Autoencoder, Discriminator
-from optuna_trials import main_optuna
 from plotting import plot_intermediate_images
 from utils import generate_model_name
 
@@ -168,6 +167,40 @@ def main(config_vals: dict):
         wandb.finish()
 
 
+def main_sweep_threshold(num_trials: int = 10):
+    config_vals = {'batch_size': 16, 'epochs': 2, 'ae_learning_rate': 1.89e-4,
+                   'gen_learning_rate': 7.90e-4, 'disc_learning_rate': 9.49e-4,
+                   'optimizer': 'RMSprop',
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 16, 'neighbours': 20,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None,
+                   'time_length': None, 'average_n': None, 'trial': 1}
+    threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
+    for threshold in threshold_range:
+        for t in range(1, num_trials + 1):
+            config_vals['trial'] = t
+            config_vals['threshold'] = threshold
+            print(generate_model_name(config_vals))
+            main(config_vals)
+
+
+def main_sweep_noise(num_trials: int = 10):
+    config_vals = {'batch_size': 16, 'epochs': 2, 'ae_learning_rate': 1.89e-4,
+                   'gen_learning_rate': 7.90e-4, 'disc_learning_rate': 9.49e-4,
+                   'optimizer': 'RMSprop',
+                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 16, 'neighbours': 20,
+                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
+                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None,
+                   'time_length': None, 'average_n': None, 'trial': 1}
+    rfi_exclusion_vals = [None, 'rfi_stations', 'rfi_dtv', 'rfi_impulse', 'rfi_scatter']
+    for rfi_excluded in rfi_exclusion_vals:
+        config_vals['excluded_rfi'] = rfi_excluded
+        for t in range(1, num_trials + 1):
+            config_vals['trial'] = t
+            print(generate_model_name(config_vals))
+            main(config_vals)
+
+
 def main_standard():
     SWEEP = False
     num_layers_vals = [2, 3]
@@ -190,4 +223,7 @@ def main_standard():
 
 
 if __name__ == "__main__":
-    main_optuna()
+    main_sweep_threshold(10)
+    os.rename(os.path.join('outputs', 'DAE'), os.path.join('outputs', 'DAE-THRESHOLD'))
+    main_sweep_noise(10)
+    os.rename(os.path.join('outputs', 'DAE'), os.path.join('outputs', 'DAE-NOISE'))

@@ -14,6 +14,8 @@ def generate_model_name(config_vals: dict):
         model_name += f'_{config_vals["time_length"]}'
     if config_vals['average_n']:
         model_name += f'_{config_vals["average_n"]}'
+    if config_vals['trial']:  # WARNING: Will not work if trial is 0
+        model_name += f'_trial_{config_vals["trial"]}'
     model_name += f'_{generate_slug(2)}'
     return model_name
 
