@@ -255,7 +255,7 @@ def main(config_vals: dict):
 def main_sweep_threshold(num_trials: int = 10):
     config_vals = {
         "batch_size": 16,
-        "epochs": 2,
+        "epochs": 120,
         "ae_learning_rate": 1.89e-4,
         "gen_learning_rate": 7.90e-4,
         "disc_learning_rate": 9.49e-4,
@@ -287,7 +287,7 @@ def main_sweep_threshold(num_trials: int = 10):
 def main_sweep_noise(num_trials: int = 10):
     config_vals = {
         "batch_size": 16,
-        "epochs": 2,
+        "epochs": 120,
         "ae_learning_rate": 1.89e-4,
         "gen_learning_rate": 7.90e-4,
         "disc_learning_rate": 9.49e-4,
