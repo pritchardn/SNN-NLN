@@ -280,7 +280,6 @@ def main_sweep_threshold(num_trials: int = 10):
         config_vals["threshold"] = threshold
         for t in range(1, num_trials + 1):
             config_vals["trial"] = t
-            print(generate_model_name(config_vals))
             main(config_vals)
 
 
@@ -312,7 +311,6 @@ def main_sweep_noise(num_trials: int = 10):
         config_vals["excluded_rfi"] = rfi_excluded
         for t in range(1, num_trials + 1):
             config_vals["trial"] = t
-            print(generate_model_name(config_vals))
             main(config_vals)
 
 
