@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 WANDB_ACTIVE = False
 
 
@@ -23,7 +23,7 @@ class SimpleNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(512, 10)
+            nn.Linear(512, 10),
         )
 
     def forward(self, x):
@@ -34,17 +34,11 @@ class SimpleNetwork(nn.Module):
 
 def load_data(batch_size=64) -> (DataLoader, DataLoader):
     training_data = datasets.MNIST(
-        root="data",
-        train=True,
-        download=True,
-        transform=ToTensor()
+        root="data", train=True, download=True, transform=ToTensor()
     )
 
     test_data = datasets.MNIST(
-        root="data",
-        train=False,
-        download=True,
-        transform=ToTensor()
+        root="data", train=False, download=True, transform=ToTensor()
     )
     train_dataloader = DataLoader(training_data, batch_size=batch_size)
     test_dataloader = DataLoader(test_data, batch_size=batch_size)
@@ -93,11 +87,15 @@ def test_model(model, dataloader, loss_fn):
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= num_batches
     correct /= size
-    print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(
+        f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n"
+    )
     return correct, test_loss
 
 
-def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer, epochs=5):
+def train(
+    trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer, epochs=5
+):
     return_accuracy = 0.0
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
@@ -105,8 +103,14 @@ def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer,
         test_acc, test_loss = test_model(model, test_data, loss_fn)
         return_accuracy = test_acc
         if WANDB_ACTIVE:
-            wandb.log({"train_loss": train_loss, "train_acc": train_acc, "test_loss": test_loss,
-                       "test_acc": test_acc})
+            wandb.log(
+                {
+                    "train_loss": train_loss,
+                    "train_acc": train_acc,
+                    "test_loss": test_loss,
+                    "test_acc": test_acc,
+                }
+            )
         trial.report(test_acc, t)
         if trial.should_prune():
             raise optuna.TrialPruned()
@@ -114,29 +118,37 @@ def train(trial: optuna.Trial, model, train_data, test_data, loss_fn, optimizer,
 
 
 def run_trial(trial: optuna.Trial):
-    config_vals = {"learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
-                   "epochs": trial.suggest_int("epochs", 10, 20, 2),
-                   "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
-                   "optimizer": trial.suggest_categorical("optimizer",
-                                                          ["Adam", "SGD", "RMSprop"])}
+    config_vals = {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
+        "epochs": trial.suggest_int("epochs", 10, 20, 2),
+        "batch_size": trial.suggest_int("batch_size", 32, 128, 32),
+        "optimizer": trial.suggest_categorical("optimizer", ["Adam", "SGD", "RMSprop"]),
+    }
     if WANDB_ACTIVE:
-        wandb.init(project="mnist-example",
-                   config=config_vals)
+        wandb.init(project="mnist-example", config=config_vals)
     train_data, test_data = load_data(batch_size=config_vals["batch_size"])
     model = create_model()
     loss_fn = nn.CrossEntropyLoss()
     if WANDB_ACTIVE:
         wandb.watch(model, log="all")
-    optimizer = getattr(torch.optim, config_vals["optimizer"])(model.parameters(),
-                                                               lr=config_vals["learning_rate"])
-    accuracy = train(trial, model, train_data, test_data, loss_fn, optimizer,
-                     epochs=config_vals["epochs"])
+    optimizer = getattr(torch.optim, config_vals["optimizer"])(
+        model.parameters(), lr=config_vals["learning_rate"]
+    )
+    accuracy = train(
+        trial,
+        model,
+        train_data,
+        test_data,
+        loss_fn,
+        optimizer,
+        epochs=config_vals["epochs"],
+    )
     if WANDB_ACTIVE:
         wandb.finish()
     return accuracy
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
     study.optimize(run_trial, n_trials=10)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])

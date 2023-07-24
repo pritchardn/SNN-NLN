@@ -3,9 +3,7 @@ import torch.nn as nn
 
 
 class Encoder(nn.Module):
-
-    def __init__(self, num_layers: int, latent_dimension: int,
-                 num_filters: int):
+    def __init__(self, num_layers: int, latent_dimension: int, num_filters: int):
         super().__init__()
         layers = []
         for n in range(num_layers):
@@ -29,23 +27,39 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-
-    def __init__(self, input_shape: tuple, num_layers: int,
-                 num_filters: int, latent_dimension: int):
+    def __init__(
+        self,
+        input_shape: tuple,
+        num_layers: int,
+        num_filters: int,
+        latent_dimension: int,
+    ):
         super().__init__()
         self.num_filters = num_filters
         self.in_dim = input_shape[-1] // (2 ** num_layers) - 1
-        self.linear = nn.Linear(latent_dimension, self.in_dim * self.in_dim * num_filters)
+        self.linear = nn.Linear(
+            latent_dimension, self.in_dim * self.in_dim * num_filters
+        )
         self.relu = nn.ReLU()
         layers = []
         for n in range(num_layers - 1):
-            layers.append(("conv_{}".format(n),
-                           nn.ConvTranspose2d((n + 1) * num_filters, (n + 2) * num_filters, 3, 2)))
+            layers.append(
+                (
+                    "conv_{}".format(n),
+                    nn.ConvTranspose2d(
+                        (n + 1) * num_filters, (n + 2) * num_filters, 3, 2
+                    ),
+                )
+            )
             layers.append(("relu_{}".format(n), nn.ReLU()))
-            layers.append(("batch_norm_{}".format(n), nn.BatchNorm2d((n + 2) * num_filters)))
+            layers.append(
+                ("batch_norm_{}".format(n), nn.BatchNorm2d((n + 2) * num_filters))
+            )
             layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
         self.cnn = nn.Sequential(OrderedDict(layers))
-        self.cnn_output = nn.ConvTranspose2d(num_layers * num_filters, 1, 3, 2, output_padding=1)
+        self.cnn_output = nn.ConvTranspose2d(
+            num_layers * num_filters, 1, 3, 2, output_padding=1
+        )
         self.sigmoid_out = nn.Sigmoid()
 
     def forward(self, x):
@@ -59,9 +73,13 @@ class Decoder(nn.Module):
 
 
 class Autoencoder(nn.Module):
-
-    def __init__(self, num_layers: int, latent_dimension: int, num_filters: int,
-                 input_shape: tuple):
+    def __init__(
+        self,
+        num_layers: int,
+        latent_dimension: int,
+        num_filters: int,
+        input_shape: tuple,
+    ):
         super().__init__()
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)
         self.decoder = Decoder(input_shape, num_layers, num_filters, latent_dimension)
@@ -73,7 +91,6 @@ class Autoencoder(nn.Module):
 
 
 class Discriminator(nn.Module):
-
     def __init__(self, num_layers: int, latent_dimension: int, num_filters: int):
         super().__init__()
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)

@@ -36,15 +36,15 @@ def create_model(input_shape, num_outputs=10, amplitude=0.01):
         x = nengo_dl.Layer(neuron_type)(x)
 
         # add the second convolutional layer
-        x = nengo_dl.Layer(tf.keras.layers.Conv2D(filters=64, strides=2, kernel_size=3))(
-            x, shape_in=(26, 26, 32)
-        )
+        x = nengo_dl.Layer(
+            tf.keras.layers.Conv2D(filters=64, strides=2, kernel_size=3)
+        )(x, shape_in=(26, 26, 32))
         x = nengo_dl.Layer(neuron_type)(x)
 
         # add the third convolutional layer
-        x = nengo_dl.Layer(tf.keras.layers.Conv2D(filters=128, strides=2, kernel_size=3))(
-            x, shape_in=(12, 12, 64)
-        )
+        x = nengo_dl.Layer(
+            tf.keras.layers.Conv2D(filters=128, strides=2, kernel_size=3)
+        )(x, shape_in=(12, 12, 64))
         x = nengo_dl.Layer(neuron_type)(x)
 
         # linear readout
@@ -59,12 +59,20 @@ def create_model(input_shape, num_outputs=10, amplitude=0.01):
     return net, out_p, out_p_filt
 
 
-def train(model, train_x, train_y, train_probe, loss_fn, optimizer, epochs, batch_size,
-          training=True):
+def train(
+    model,
+    train_x,
+    train_y,
+    train_probe,
+    loss_fn,
+    optimizer,
+    epochs,
+    batch_size,
+    training=True,
+):
     with nengo_dl.Simulator(model, minibatch_size=batch_size) as sim:
         if training:
-            sim.compile(loss={train_probe: loss_fn},
-                        optimizer=optimizer)
+            sim.compile(loss={train_probe: loss_fn}, optimizer=optimizer)
             history = sim.fit(train_x, {train_probe: train_y}, epochs=epochs)
             sim.save_params("./mnist_params")
             return history.history
@@ -75,16 +83,19 @@ def classification_accuracy(y_true, y_pred):
 
 
 def run_trial(trial: optuna.Trial):
-    config_vals = {"learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
-                   "epochs": trial.suggest_int("epochs", 2, 14, 2),
-                   "batch_size": trial.suggest_int("batch_size", 50, 400, 50),
-                   "optimizer": trial.suggest_categorical("optimizer",
-                                                          ["Adam", "SGD", "RMSprop"]),
-                   "num_steps": trial.suggest_int("num_steps", 10, 50, 10),
-                   "amplitude": trial.suggest_float("amplitude", 0.01, 0.1)}
+    config_vals = {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2),
+        "epochs": trial.suggest_int("epochs", 2, 14, 2),
+        "batch_size": trial.suggest_int("batch_size", 50, 400, 50),
+        "optimizer": trial.suggest_categorical("optimizer", ["Adam", "SGD", "RMSprop"]),
+        "num_steps": trial.suggest_int("num_steps", 10, 50, 10),
+        "amplitude": trial.suggest_float("amplitude", 0.01, 0.1),
+    }
     input_shape = (28, 28, 1)
     train_x, train_y, test_x, test_y = load_data(num_steps=config_vals["num_steps"])
-    model, train_probe, test_probe = create_model(input_shape, amplitude=config_vals["amplitude"])
+    model, train_probe, test_probe = create_model(
+        input_shape, amplitude=config_vals["amplitude"]
+    )
     sim = nengo_dl.Simulator(model, minibatch_size=config_vals["batch_size"])
     optimizer = keras.optimizers.get(config_vals["optimizer"])
     optimizer.learning_rate.assign(config_vals["learning_rate"])
@@ -96,8 +107,16 @@ def run_trial(trial: optuna.Trial):
         sim.evaluate(test_x, {test_probe: test_y}, verbose=1)["loss"],
     )
 
-    history = train(model, train_x, train_y, train_probe, loss_fn, optimizer, config_vals['epochs'],
-                    config_vals['batch_size'])
+    history = train(
+        model,
+        train_x,
+        train_y,
+        train_probe,
+        loss_fn,
+        optimizer,
+        config_vals["epochs"],
+        config_vals["batch_size"],
+    )
     sim.compile(loss={test_probe: classification_accuracy})
     final_accuracy = sim.evaluate(test_x, {test_probe: test_y}, verbose=1)["loss"]
     print("Final accuracy:", final_accuracy)
@@ -106,7 +125,7 @@ def run_trial(trial: optuna.Trial):
     return final_accuracy
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
     study.optimize(run_trial, n_trials=20)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
@@ -120,9 +139,11 @@ if __name__ == '__main__':
     for trial in complete_trials:
         complete_out[trial.number] = {k: v for k, v in trial.params.items()}
         complete_out[trial.number]["value"] = trial.value
-    best_out[study.best_trial.number] = {k: v for k, v in study.best_trial.params.items()}
+    best_out[study.best_trial.number] = {
+        k: v for k, v in study.best_trial.params.items()
+    }
     best_out[study.best_trial.number]["value"] = study.best_trial.value
-    with open('nengo_study.json', 'w') as f:
+    with open("nengo_study.json", "w") as f:
         json.dump({"pruned": pruned_out, "complete": complete_out, "best": best_out}, f)
     print("Study statistics: ")
     print("  Number of finished trials: ", len(study.trials))

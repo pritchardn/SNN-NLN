@@ -4,7 +4,6 @@ import os
 import optuna
 import torch
 import wandb
-from optuna.trial import TrialState
 
 from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
@@ -20,7 +19,9 @@ def save_config(config: dict, output_dir: str):
         json.dump(config, f, indent=4)
 
 
-def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer):
+def train_step(
+    auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
+):
     auto_encoder.train()
     discriminator.train()
     x_hat = auto_encoder(x)
@@ -46,14 +47,26 @@ def train_step(auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, gen
     return auto_loss, disc_loss, gen_loss
 
 
-def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_optimizer,
-                generator_optimizer, epochs, model_type, output_dir,
-                config_vals=None, test_dataset=None, test_masks_original=None, train_x=None,
-                trial: optuna.Trial = None):
+def train_model(
+    auto_encoder,
+    discriminator,
+    train_dataset,
+    ae_optimizer,
+    disc_optimizer,
+    generator_optimizer,
+    epochs,
+    model_type,
+    output_dir,
+    config_vals=None,
+    test_dataset=None,
+    test_masks_original=None,
+    train_x=None,
+    trial: optuna.Trial = None,
+):
     ae_loss_history = []
     disc_loss_history = []
     gen_loss_history = []
-    metrics = {'mse': 1.0}
+    metrics = {"mse": 1.0}
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-----------")
         running_ae_loss = 0.0
@@ -62,8 +75,14 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         for batch, (x, y) in enumerate(train_dataset):
             x, y = x.to(DEVICE), y.to(DEVICE)
 
-            ae_loss, disc_loss, gen_loss = train_step(auto_encoder, discriminator, x, ae_optimizer,
-                                                      disc_optimizer, generator_optimizer)
+            ae_loss, disc_loss, gen_loss = train_step(
+                auto_encoder,
+                discriminator,
+                x,
+                ae_optimizer,
+                disc_optimizer,
+                generator_optimizer,
+            )
             ae_optimizer.zero_grad()
             disc_optimizer.zero_grad()
             generator_optimizer.zero_grad()
@@ -76,9 +95,13 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         interim_gen_loss = running_gen_loss / len(train_dataset)
 
         if WANDB_ACTIVE:
-            wandb.log({"autoencoder_train_loss": interim_ae_loss,
-                       "discriminator_train_loss": interim_disc_loss,
-                       "generator_train_loss": interim_gen_loss})
+            wandb.log(
+                {
+                    "autoencoder_train_loss": interim_ae_loss,
+                    "discriminator_train_loss": interim_disc_loss,
+                    "generator_train_loss": interim_gen_loss,
+                }
+            )
 
         ae_loss_history.append(interim_ae_loss)
         disc_loss_history.append(interim_disc_loss)
@@ -87,218 +110,240 @@ def train_model(auto_encoder, discriminator, train_dataset, ae_optimizer, disc_o
         print("Discriminator Loss: ", interim_disc_loss)
         print("Generator Loss: ", interim_gen_loss)
 
-        plot_intermediate_images(auto_encoder, train_dataset, t + 1, model_type, output_dir,
-                                 train_dataset.batch_size)
-        if config_vals is not None and test_dataset is not None and test_masks_original is not None and train_x is not None and trial is not None:
-            metrics = mid_run_calculate_metrics(auto_encoder, test_masks_original, test_dataset, train_dataset,
-                                                config_vals['neighbours'],
-                                                config_vals['batch_size'],
-                                                config_vals['latent_dimension'],
-                                                train_x[0].shape[0], config_vals['patch_size'])
-            trial.report(metrics['mse'], t)
+        plot_intermediate_images(
+            auto_encoder,
+            train_dataset,
+            t + 1,
+            model_type,
+            output_dir,
+            train_dataset.batch_size,
+        )
+        if (
+            config_vals is not None
+            and test_dataset is not None
+            and test_masks_original is not None
+            and train_x is not None
+            and trial is not None
+        ):
+            metrics = mid_run_calculate_metrics(
+                auto_encoder,
+                test_masks_original,
+                test_dataset,
+                train_dataset,
+                config_vals["neighbours"],
+                config_vals["batch_size"],
+                config_vals["latent_dimension"],
+                train_x[0].shape[0],
+                config_vals["patch_size"],
+            )
+            trial.report(metrics["mse"], t)
             print(f"mse:\t{metrics['mse']}")
             if trial.should_prune():
                 raise optuna.TrialPruned()
-    return metrics[
-        'mse'], auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history
+    return (
+        metrics["mse"],
+        auto_encoder,
+        discriminator,
+        ae_loss_history,
+        disc_loss_history,
+        gen_loss_history,
+    )
 
 
 def main(config_vals: dict):
-    config_vals['model_name'] = generate_model_name(config_vals)
-    print(config_vals['model_name'])
-    output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
-                 f'{config_vals["model_name"]}/'
+    config_vals["model_name"] = generate_model_name(config_vals)
+    print(config_vals["model_name"])
+    output_dir = (
+        f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
+        f'{config_vals["model_name"]}/'
+    )
     if WANDB_ACTIVE:
-        wandb.init(project='snn-nln-1', config=config_vals)
+        wandb.init(project="snn-nln-1", config=config_vals)
     train_x, train_y, test_x, test_y, rfi_models = load_data(
-        excluded_rfi=config_vals['excluded_rfi'])
-    train_dataset, _ = process_into_dataset(train_x, train_y,
-                                            batch_size=config_vals['batch_size'],
-                                            mode='HERA',
-                                            threshold=config_vals['threshold'],
-                                            patch_size=config_vals['patch_size'],
-                                            stride=config_vals['patch_stride'],
-                                            filter=True, shuffle=True)
-    test_dataset, test_masks_original = process_into_dataset(test_x, test_y,
-                                                             batch_size=config_vals['batch_size'],
-                                                             mode='HERA',
-                                                             threshold=config_vals['threshold'],
-                                                             patch_size=config_vals['patch_size'],
-                                                             stride=config_vals['patch_stride'],
-                                                             shuffle=False,
-                                                             get_orig=True)
+        excluded_rfi=config_vals["excluded_rfi"]
+    )
+    train_dataset, _ = process_into_dataset(
+        train_x,
+        train_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        filter=True,
+        shuffle=True,
+    )
+    test_dataset, test_masks_original = process_into_dataset(
+        test_x,
+        test_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        shuffle=False,
+        get_orig=True,
+    )
     # Create model
-    auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(
-        DEVICE)
-    discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
-                                  config_vals['num_filters']).to(DEVICE)
+    auto_encoder = Autoencoder(
+        config_vals["num_layers"],
+        config_vals["latent_dimension"],
+        config_vals["num_filters"],
+        train_dataset.dataset[0][0].shape,
+    ).to(DEVICE)
+    discriminator = Discriminator(
+        config_vals["num_layers"],
+        config_vals["latent_dimension"],
+        config_vals["num_filters"],
+    ).to(DEVICE)
     # Create optimizer
-    ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
-                                                                  lr=config_vals[
-                                                                      'ae_learning_rate'])
-    disc_optimizer = getattr(torch.optim, config_vals['optimizer'])(discriminator.parameters(),
-                                                                    lr=config_vals[
-                                                                        'disc_learning_rate'])
-    generator_optimizer = getattr(torch.optim, config_vals['optimizer'])(
-        auto_encoder.decoder.parameters(),
-        lr=config_vals['gen_learning_rate'])
+    ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
+        auto_encoder.parameters(), lr=config_vals["ae_learning_rate"]
+    )
+    disc_optimizer = getattr(torch.optim, config_vals["optimizer"])(
+        discriminator.parameters(), lr=config_vals["disc_learning_rate"]
+    )
+    generator_optimizer = getattr(torch.optim, config_vals["optimizer"])(
+        auto_encoder.decoder.parameters(), lr=config_vals["gen_learning_rate"]
+    )
     # Train model
-    accuracy, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history = \
-        train_model(
-            auto_encoder, discriminator, train_dataset,
-            ae_optimizer, disc_optimizer,
-            generator_optimizer, config_vals['epochs'], config_vals['model_type'], output_dir)
+    (
+        accuracy,
+        auto_encoder,
+        discriminator,
+        ae_loss_history,
+        disc_loss_history,
+        gen_loss_history,
+    ) = train_model(
+        auto_encoder,
+        discriminator,
+        train_dataset,
+        ae_optimizer,
+        disc_optimizer,
+        generator_optimizer,
+        config_vals["epochs"],
+        config_vals["model_type"],
+        output_dir,
+    )
     auto_encoder.eval()
     discriminator.eval()
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
     # Test model
-    evaluate_model(auto_encoder, test_masks_original, test_dataset, train_dataset,
-                   config_vals.get('neighbours'), config_vals.get('batch_size'),
-                   config_vals.get('latent_dimension'),
-                   train_x[0].shape[0], config_vals.get('patch_size'), config_vals['model_name'],
-                   config_vals['model_type'],
-                   config_vals.get("anomaly_type"), config_vals.get("dataset"))
-    torch.save(auto_encoder.state_dict(), os.path.join(output_dir, 'autoencoder.pt'))
+    evaluate_model(
+        auto_encoder,
+        test_masks_original,
+        test_dataset,
+        train_dataset,
+        config_vals.get("neighbours"),
+        config_vals.get("batch_size"),
+        config_vals.get("latent_dimension"),
+        train_x[0].shape[0],
+        config_vals.get("patch_size"),
+        config_vals["model_name"],
+        config_vals["model_type"],
+        config_vals.get("anomaly_type"),
+        config_vals.get("dataset"),
+    )
+    torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_config(config_vals, output_dir)
     # convert_to_snn(auto_encoder, train_dataset, test_dataset)
     if WANDB_ACTIVE:
         wandb.finish()
 
 
-def run_trial(trial: optuna.Trial):
-    latent_dimension = trial.suggest_int('latent_dimension', 32, 64, 16)
-    config_vals = {'batch_size': trial.suggest_int('batch_size', 16, 128, 16),
-                   'epochs': trial.suggest_int('epochs', 2, 128),
-                   'ae_learning_rate': trial.suggest_float('ae_learning_rate', 1e-5, 1e-3),
-                   'gen_learning_rate': trial.suggest_float('gen_learning_rate', 1e-5, 1e-3),
-                   'disc_learning_rate': trial.suggest_float('disc_learning_rate', 1e-5, 1e-3),
-                   'optimizer': trial.suggest_categorical('optimizer', ['Adam', 'RMSprop', 'SGD']),
-                   'num_layers': trial.suggest_int('num_layers', 2, 4),
-                   'latent_dimension': latent_dimension,
-                   'num_filters': trial.suggest_int('num_filters', 16, 64, 16),
-                   'neighbours': trial.suggest_int('neighbours', 1, 25),
-                   'patch_size': latent_dimension,
-                   'patch_stride': latent_dimension,
-                   'threshold': 10,
-                   'anomaly_type': "MISO",
-                   'dataset': 'HERA',
-                   'model_type': 'DAE',
-                   'excluded_rfi': None,
-                   'time_length': None,
-                   'average_n': None}
-    config_vals['model_name'] = generate_model_name(config_vals)
-    print(json.dumps(config_vals, indent=4))
-    output_dir = f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/' \
-                 f'{config_vals["model_name"]}/'
-    train_x, train_y, test_x, test_y, rfi_models = load_data(
-        excluded_rfi=config_vals['excluded_rfi'])
-    train_dataset, _ = process_into_dataset(train_x, train_y,
-                                            batch_size=config_vals['batch_size'],
-                                            mode='HERA',
-                                            threshold=config_vals['threshold'],
-                                            patch_size=config_vals['patch_size'],
-                                            stride=config_vals['patch_stride'],
-                                            filter=True, shuffle=True)
-    test_dataset, test_masks_original = process_into_dataset(test_x, test_y,
-                                                             batch_size=config_vals['batch_size'],
-                                                             mode='HERA',
-                                                             threshold=config_vals['threshold'],
-                                                             patch_size=config_vals['patch_size'],
-                                                             stride=config_vals['patch_stride'],
-                                                             shuffle=False,
-                                                             get_orig=True)
-    # Create model
-    auto_encoder = Autoencoder(config_vals['num_layers'], config_vals['latent_dimension'],
-                               config_vals['num_filters'], train_dataset.dataset[0][0].shape).to(
-        DEVICE)
-    discriminator = Discriminator(config_vals['num_layers'], config_vals['latent_dimension'],
-                                  config_vals['num_filters']).to(DEVICE)
-    # Create optimizer
-    ae_optimizer = getattr(torch.optim, config_vals['optimizer'])(auto_encoder.parameters(),
-                                                                  lr=config_vals[
-                                                                      'ae_learning_rate'])
-    disc_optimizer = getattr(torch.optim, config_vals['optimizer'])(discriminator.parameters(),
-                                                                    lr=config_vals[
-                                                                        'disc_learning_rate'])
-    generator_optimizer = getattr(torch.optim, config_vals['optimizer'])(
-        auto_encoder.decoder.parameters(),
-        lr=config_vals['gen_learning_rate'])
-    # Train model
-    mse, auto_encoder, discriminator, ae_loss_history, disc_loss_history, gen_loss_history = \
-        train_model(
-            auto_encoder, discriminator, train_dataset,
-            ae_optimizer, disc_optimizer,
-            generator_optimizer, config_vals['epochs'], config_vals['model_type'], output_dir,
-            config_vals=config_vals, test_dataset=test_dataset,
-            test_masks_original=test_masks_original, train_x=train_x, trial=trial)
-    auto_encoder.eval()
-    discriminator.eval()
-    # Plot loss history
-    plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
-    # Test model
-    metrics = evaluate_model(auto_encoder, test_masks_original, test_dataset, train_dataset,
-                             config_vals.get('neighbours'), config_vals.get('batch_size'),
-                             config_vals.get('latent_dimension'),
-                             train_x[0].shape[0], config_vals.get('patch_size'),
-                             config_vals['model_name'],
-                             config_vals['model_type'],
-                             config_vals.get("anomaly_type"), config_vals.get("dataset"))
-    torch.save(auto_encoder.state_dict(), os.path.join(output_dir, 'autoencoder.pt'))
-    save_config(config_vals, output_dir)
-    mse = metrics['mse']
-    return mse
+def main_sweep_threshold(num_trials: int = 10):
+    config_vals = {
+        "batch_size": 16,
+        "epochs": 120,
+        "ae_learning_rate": 1.89e-4,
+        "gen_learning_rate": 7.90e-4,
+        "disc_learning_rate": 9.49e-4,
+        "optimizer": "RMSprop",
+        "num_layers": 2,
+        "latent_dimension": 32,
+        "num_filters": 16,
+        "neighbours": 20,
+        "patch_size": 32,
+        "patch_stride": 32,
+        "threshold": 10,
+        "anomaly_type": "MISO",
+        "dataset": "HERA",
+        "model_type": "DAE",
+        "excluded_rfi": None,
+        "time_length": None,
+        "average_n": None,
+        "trial": 1,
+    }
+    threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
+    for threshold in threshold_range:
+        config_vals["threshold"] = threshold
+        for t in range(1, num_trials + 1):
+            config_vals["trial"] = t
+            main(config_vals)
 
 
-def main_optuna():
-    study = optuna.create_study(direction="minimize")
-    study.optimize(run_trial, n_trials=64)
-    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
-    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
-
-    print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
-
-    print("Best trial:")
-    trial = study.best_trial
-
-    print("  Value: ", trial.value)
-
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
-    with open(f'outputs{os.sep}best_trial.json', 'w') as f:
-        json.dump(trial.params, f, indent=4)
-    with open(f'outputs{os.sep}completed_trials.json', 'w') as f:
-        completed_trials_out = []
-        for trial_params in complete_trials:
-            completed_trials_out.append(trial_params.params)
-        json.dump(completed_trials_out, f, indent=4)
-    with open(f'outputs{os.sep}pruned_trials.json', 'w') as f:
-        pruned_trials_out = []
-        for trial_params in pruned_trials:
-            pruned_trials_out.append(trial_params.params)
-        json.dump(pruned_trials_out, f, indent=4)
+def main_sweep_noise(num_trials: int = 10):
+    config_vals = {
+        "batch_size": 16,
+        "epochs": 120,
+        "ae_learning_rate": 1.89e-4,
+        "gen_learning_rate": 7.90e-4,
+        "disc_learning_rate": 9.49e-4,
+        "optimizer": "RMSprop",
+        "num_layers": 2,
+        "latent_dimension": 32,
+        "num_filters": 16,
+        "neighbours": 20,
+        "patch_size": 32,
+        "patch_stride": 32,
+        "threshold": 10,
+        "anomaly_type": "MISO",
+        "dataset": "HERA",
+        "model_type": "DAE",
+        "excluded_rfi": None,
+        "time_length": None,
+        "average_n": None,
+        "trial": 1,
+    }
+    rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
+    for rfi_excluded in rfi_exclusion_vals:
+        config_vals["excluded_rfi"] = rfi_excluded
+        for t in range(1, num_trials + 1):
+            config_vals["trial"] = t
+            main(config_vals)
 
 
 def main_standard():
     SWEEP = False
     num_layers_vals = [2, 3]
-    rfi_exclusion_vals = [None, 'rfi_stations', 'rfi_dtv', 'rfi_impulse', 'rfi_scatter']
-    config_vals = {'batch_size': 64, 'epochs': 2, 'ae_learning_rate': 1e-4,
-                   'gen_learning_rate': 1e-5, 'disc_learning_rate': 1e-5, 'optimizer': 'Adam',
-                   'num_layers': 2, 'latent_dimension': 32, 'num_filters': 32, 'neighbours': 20,
-                   'patch_size': 32, 'patch_stride': 32, 'threshold': 10, 'anomaly_type': "MISO",
-                   'dataset': 'HERA', 'model_type': 'DAE', 'excluded_rfi': None,
-                   'time_length': None, 'average_n': None}
+    rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
+    config_vals = {
+        "batch_size": 64,
+        "epochs": 2,
+        "ae_learning_rate": 1e-4,
+        "gen_learning_rate": 1e-5,
+        "disc_learning_rate": 1e-5,
+        "optimizer": "Adam",
+        "num_layers": 2,
+        "latent_dimension": 32,
+        "num_filters": 32,
+        "neighbours": 20,
+        "patch_size": 32,
+        "patch_stride": 32,
+        "threshold": 10,
+        "anomaly_type": "MISO",
+        "dataset": "HERA",
+        "model_type": "DAE",
+        "excluded_rfi": None,
+        "time_length": None,
+        "average_n": None,
+    }
     if SWEEP:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
-                config_vals['num_layers'] = num_layers
-                config_vals['excluded_rfi'] = rfi_excluded
+                config_vals["num_layers"] = num_layers
+                config_vals["excluded_rfi"] = rfi_excluded
                 print(config_vals)
                 main(config_vals)
     else:
@@ -306,4 +351,7 @@ def main_standard():
 
 
 if __name__ == "__main__":
-    main_optuna()
+    main_sweep_threshold(10)
+    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
+    main_sweep_noise(10)
+    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
