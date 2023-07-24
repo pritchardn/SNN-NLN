@@ -51,21 +51,28 @@ def make_threshold_plot(results: pd.DataFrame):
     # TODO: Multiple trials and therefore std-dev error bars
     # TODO: Filter results for best time_length and average_n
     # TODO: Better legend placement
+    num_ticks = len(sub_results["threshold"].unique())
+    xticks = np.arange(0, num_ticks, 1)
     for model in models:
-        model_results = sub_results[sub_results["model_type"] == model].groupby("threshold").mean(
-            "auroc", "auprc", "f1")
-        axs[0].bar(model_results.index + width / 2 * i, model_results["auroc"], width=width,
-                   label=model)
-        axs[1].bar(model_results.index + width / 2 * i, model_results["auprc"], width=width,
-                   label=model)
-        axs[2].bar(model_results.index + width / 2 * i, model_results["f1"], width=width,
-                   label=model)
+        model_results = sub_results[sub_results["model_type"] == model].groupby("threshold").agg({"auroc": ['mean', 'std'], "auprc": ['mean', 'std'], "f1": ['mean', 'std']})
+        print(model_results.index)
+        xvals = np.arange(0, len(model_results.index), 1)
+        axs[0].bar(xvals + width / 2 * i, model_results["auroc"]['mean'], width=width,
+                   label=model, yerr=model_results["auroc"]['std'])
+        axs[1].bar(xvals + width / 2 * i, model_results["auprc"]['mean'], width=width,
+                   label=model, yerr=model_results["auroc"]['std'])
+        axs[2].bar(xvals + width / 2 * i, model_results["f1"]['mean'], width=width,
+                   label=model, yerr=model_results["auroc"]['std'])
         i = -i
-    axs[0].legend()
+    axs[1].legend()
     axs[0].set_ylabel("AUROC")
     axs[1].set_ylabel("AUPRC")
     axs[2].set_ylabel("F1")
+    xticklabels = sorted(sub_results["threshold"].unique().astype(int))
+    xticklabels[0] = 0.5
     for ax in axs:
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels)
         ax.set_xlabel("AOFlagger Threshold")
     plt.savefig("outputs/threshold_plot.png", dpi=300)
     plt.close('all')
