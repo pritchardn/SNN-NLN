@@ -6,8 +6,10 @@ import os
 import matplotlib.animation as animation
 import matplotlib.image
 import numpy as np
+import optuna
 import torch
 from matplotlib import pyplot as plt
+from optuna.trial import TrialState
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
@@ -138,7 +140,7 @@ def load_test_dataset(config_vals: dict):
 
 
 def load_ann_model(
-    input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
+        input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
 ):
     model_path = os.path.join(input_dir, "autoencoder.pt")
     model = Autoencoder(
@@ -167,13 +169,13 @@ def snln(x_hat, test_dataset, average_n):
 
 
 def evaluate_snn(
-    model,
-    test_dataset,
-    test_masks_original,
-    patch_size,
-    original_size,
-    runtime,
-    average_n,
+        model,
+        test_dataset,
+        test_masks_original,
+        patch_size,
+        original_size,
+        runtime,
+        average_n,
 ):
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
@@ -198,7 +200,7 @@ def evaluate_snn(
 
 
 def reconstruct_snn_inference(
-    inference: np.array, original_size: int, kernel_size: int
+        inference: np.array, original_size: int, kernel_size: int
 ):
     t = np.vstack(inference.transpose(0, 2, 4, 5, 1, 3))
     n_patches = original_size // kernel_size
@@ -232,7 +234,7 @@ def reconstruct_snn_inference(
 
 
 def plot_snn_results(
-    original_images, test_masks_recon, snln_error_recon, inference, output_dir
+        original_images, test_masks_recon, snln_error_recon, inference, output_dir
 ):
     plot_directory = os.path.join(output_dir, "results")
     os.makedirs(plot_directory, exist_ok=True)
@@ -349,7 +351,73 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
 
 
-if __name__ == "__main__":
+def run_trial_snn(trial: optuna.Trial, input_dir: str):
+    config_vals = load_config(input_dir)
+    config_vals["time_length"] = trial.suggest_int("time_length", 16, 128)
+    config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
+    config_vals["model_type"] = "SDAE"
+    config_vals["model_name"] = generate_model_name(config_vals)
+    output_dir = generate_output_dir(config_vals)
+    if config_vals["average_n"] > config_vals["time_length"]:
+        raise optuna.exceptions.TrialPruned
+
+    # Get dataset
+    test_dataset, test_masks_original = load_test_dataset(config_vals)
+    # Load model
+    model = load_ann_model(input_dir, config_vals, test_dataset)
+    # Convert to SNN
+    snn_model = convert_to_snn(model, test_dataset)
+    # Evaluate
+    sln_metrics, snln_error_recon, inference = evaluate_snn(
+        snn_model,
+        test_dataset,
+        test_masks_original,
+        config_vals["patch_size"],
+        512,
+        config_vals["time_length"],
+        config_vals["average_n"],
+    )
+    # Save results to file
+    os.makedirs(output_dir, exist_ok=True)
+    save_results(config_vals, sln_metrics, output_dir)
+    torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
+    return sln_metrics['mse']
+
+
+def main_optuna_snn(input_dir: str):
+    study = optuna.create_study(direction="minimize")
+    study.optimize(lambda trial: run_trial_snn(trial, input_dir), n_trials=1)
+    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+
+    print("Study statistics: ")
+    print("  Number of finished trials: ", len(study.trials))
+    print("  Number of pruned trials: ", len(pruned_trials))
+    print("  Number of complete trials: ", len(complete_trials))
+
+    print("Best trial:")
+    trial = study.best_trial
+
+    print("  Value: ", trial.value)
+
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print("    {}: {}".format(key, value))
+    with open(f"outputs{os.sep}best_trial_snn.json", "w") as f:
+        json.dump(trial.params, f, indent=4)
+    with open(f"outputs{os.sep}completed_trials_snn.json", "w") as f:
+        completed_trials_out = []
+        for trial_params in complete_trials:
+            completed_trials_out.append(trial_params.params)
+        json.dump(completed_trials_out, f, indent=4)
+    with open(f"outputs{os.sep}pruned_trials_snn.json", "w") as f:
+        pruned_trials_out = []
+        for trial_params in pruned_trials:
+            pruned_trials_out.append(trial_params.params)
+        json.dump(pruned_trials_out, f, indent=4)
+
+
+def main_standard():
     SWEEP = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
@@ -367,3 +435,7 @@ if __name__ == "__main__":
     else:
         input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
         main(input_dir, 32, 5, skip_exists=False)
+
+
+if __name__ == "__main__":
+    main_optuna_snn("outputs/DAE/MISO/DAE_MISO_HERA_32_2_10_trial_1_elastic-rabbit")

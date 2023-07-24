@@ -319,15 +319,15 @@ def main_standard():
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     config_vals = {
-        "batch_size": 64,
-        "epochs": 2,
-        "ae_learning_rate": 1e-4,
-        "gen_learning_rate": 1e-5,
-        "disc_learning_rate": 1e-5,
-        "optimizer": "Adam",
+        "batch_size": 16,
+        "epochs": 120,
+        "ae_learning_rate": 1.89e-4,
+        "gen_learning_rate": 7.90e-4,
+        "disc_learning_rate": 9.49e-4,
+        "optimizer": "RMSprop",
         "num_layers": 2,
         "latent_dimension": 32,
-        "num_filters": 32,
+        "num_filters": 16,
         "neighbours": 20,
         "patch_size": 32,
         "patch_stride": 32,
@@ -338,6 +338,7 @@ def main_standard():
         "excluded_rfi": None,
         "time_length": None,
         "average_n": None,
+        "trial": 1,
     }
     if SWEEP:
         for num_layers in num_layers_vals:
