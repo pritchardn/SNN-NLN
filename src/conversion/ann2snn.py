@@ -356,8 +356,11 @@ def run_trial_snn(trial: optuna.Trial, input_dir: str):
     config_vals["time_length"] = trial.suggest_int("time_length", 16, 128)
     config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
     config_vals["model_type"] = "SDAE"
+    if "trial" in config_vals:
+        config_vals["trial"] = None
     config_vals["model_name"] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
+    print(config_vals)
     if config_vals["average_n"] > config_vals["time_length"]:
         raise optuna.exceptions.TrialPruned
 
@@ -386,7 +389,7 @@ def run_trial_snn(trial: optuna.Trial, input_dir: str):
 
 def main_optuna_snn(input_dir: str):
     study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: run_trial_snn(trial, input_dir), n_trials=1)
+    study.optimize(lambda trial: run_trial_snn(trial, input_dir), n_trials=128)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
