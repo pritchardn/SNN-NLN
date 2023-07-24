@@ -351,9 +351,8 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
 
 
-def run_trial_snn(trial: optuna.Trial, input_dir: str):
-    config_vals = load_config(input_dir)
-    config_vals["time_length"] = trial.suggest_int("time_length", 16, 128)
+def run_trial_snn(trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model):
+    config_vals["time_length"] = trial.suggest_int("time_length", 16, 64)
     config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
     config_vals["model_type"] = "SDAE"
     if "trial" in config_vals:
@@ -363,11 +362,6 @@ def run_trial_snn(trial: optuna.Trial, input_dir: str):
     print(config_vals)
     if config_vals["average_n"] > config_vals["time_length"]:
         raise optuna.exceptions.TrialPruned
-
-    # Get dataset
-    test_dataset, test_masks_original = load_test_dataset(config_vals)
-    # Load model
-    model = load_ann_model(input_dir, config_vals, test_dataset)
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset)
     # Evaluate
@@ -389,7 +383,14 @@ def run_trial_snn(trial: optuna.Trial, input_dir: str):
 
 def main_optuna_snn(input_dir: str):
     study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: run_trial_snn(trial, input_dir), n_trials=128)
+    config_vals = load_config(input_dir)
+    # Get dataset
+    test_dataset, test_masks_original = load_test_dataset(config_vals)
+    # Load model
+    model = load_ann_model(input_dir, config_vals, test_dataset)
+    study.optimize(
+        lambda trial: run_trial_snn(trial, config_vals, test_dataset, test_masks_original, model),
+        n_trials=60)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
