@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 import torch.nn as nn
 
 
@@ -94,6 +95,115 @@ class Discriminator(nn.Module):
     def __init__(self, num_layers: int, latent_dimension: int, num_filters: int):
         super().__init__()
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)
+        self.flatten = nn.Flatten()
+        self.output = nn.LazyLinear(1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        z = self.encoder(x)
+        classification = self.flatten(z)
+        output = self.output(classification)
+        output = self.sigmoid(output)
+        return z, output
+
+
+class CustomEncoder(nn.Module):
+    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+        super().__init__()
+        """
+        nn.Conv2d(num_input_channels, base_channels, 3, 2, padding=1),
+        nn.ReLU(),
+        nn.BatchNorm2d(base_channels),
+        nn.Dropout(0.05),
+        nn.Conv2d(base_channels, base_channels, 3, padding=1),
+        nn.ReLU(),
+        nn.BatchNorm2d(base_channels),
+        nn.Dropout(0.05),
+        """
+        self.net = nn.Sequential(
+            nn.Conv2d(num_input_channels, base_channels, kernel_size=3, padding=1, stride=2),
+            # 32x32 => 16x16
+            nn.ReLU(),
+            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels),
+            nn.Dropout(0.05),
+            nn.Conv2d(base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
+            # 16x16 => 8x8
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.Dropout(0.05),
+            nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.Dropout(0.05),
+            nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
+            # 8x8 => 4x4
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.Dropout(0.05),
+            nn.Flatten(),
+            nn.Linear(base_channels * 2 * 16, latent_dimension),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class CustomDecoder(nn.Module):
+    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+        super().__init__()
+        self.linear = nn.Sequential(
+            nn.Linear(latent_dimension, 2 * 16 * base_channels),
+            nn.ReLU(),
+        )
+        self.net = nn.Sequential(
+            nn.ConvTranspose2d(2 * base_channels, 2 * base_channels, 3, 2, padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.Dropout(0.05),
+            nn.Conv2d(base_channels * 2, base_channels * 2, 3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.Dropout(0.05),
+            nn.ConvTranspose2d(2 * base_channels, base_channels, kernel_size=3, output_padding=1, padding=1,
+                               stride=2),  # 8x8 => 16x16
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels),
+            nn.Dropout(0.05),
+            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(base_channels),
+            nn.Dropout(0.05),
+            nn.ConvTranspose2d(
+                base_channels, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2
+            ),  # 16x16 => 32x32
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        x = self.linear(x)
+        x = x.view(x.shape[0], -1, 4, 4)
+        x = self.net(x)
+        return x
+
+
+class CustomAutoEncoder(nn.Module):
+    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+        super().__init__()
+        self.encoder = CustomEncoder(num_input_channels, base_channels, latent_dimension)
+        self.decoder = CustomDecoder(num_input_channels, base_channels, latent_dimension)
+
+    def forward(self, x):
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
+        return x_hat
+
+
+class CustomDiscriminator(nn.Module):
+    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+        super().__init__()
+        self.encoder = CustomEncoder(num_input_channels, base_channels, latent_dimension)
         self.flatten = nn.Flatten()
         self.output = nn.LazyLinear(1)
         self.sigmoid = nn.Sigmoid()

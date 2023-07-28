@@ -163,7 +163,7 @@ def snln(x_hat, test_dataset, average_n):
     x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
     average_x_hat = np.vstack(np.mean(x_hat_trimmed, axis=1))
     average_x_hat = scale_image(average_x_hat)
-    images = test_dataset.dataset[:][1].cpu().detach().numpy()
+    images = test_dataset.dataset[:][0].cpu().detach().numpy()
     error = images - average_x_hat
     return error
 
@@ -421,7 +421,7 @@ def main_optuna_snn(input_dir: str):
         json.dump(pruned_trials_out, f, indent=4)
 
 
-def main_standard():
+def main_standard(input_dir="./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
     SWEEP = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
@@ -437,9 +437,17 @@ def main_standard():
                     print(f"{input_dir}\t{time_length}\t{n}")
                     main(input_dir, time_length, n, plot=plot)
     else:
-        input_dir = "./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"
-        main(input_dir, 32, 5, skip_exists=False)
+        main(input_dir, 39, 3, skip_exists=False)
 
 
 if __name__ == "__main__":
-    main_optuna_snn("outputs/DAE/MISO/DAE_MISO_HERA_32_2_10_trial_1_elastic-rabbit")
+    input_dir = "./outputs/DAE-NOISE/MISO"
+    for trial_dir in os.listdir(input_dir):
+        print(os.path.join(input_dir, trial_dir))
+        main_standard(os.path.join(input_dir, trial_dir))
+    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-NOISE"))
+    input_dir = "./outputs/DAE-THRESHOLD/MISO"
+    for trial_dir in os.listdir(input_dir):
+        print(os.path.join(input_dir, trial_dir))
+        main_standard(os.path.join(input_dir, trial_dir))
+    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-THRESHOLD"))

@@ -9,7 +9,7 @@ from config import WANDB_ACTIVE, DEVICE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
-from models import Autoencoder, Discriminator
+from models import CustomAutoEncoder, CustomDiscriminator
 from plotting import plot_intermediate_images
 from utils import generate_model_name
 
@@ -20,7 +20,7 @@ def save_config(config: dict, output_dir: str):
 
 
 def train_step(
-    auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
+        auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
 ):
     auto_encoder.train()
     discriminator.train()
@@ -48,20 +48,20 @@ def train_step(
 
 
 def train_model(
-    auto_encoder,
-    discriminator,
-    train_dataset,
-    ae_optimizer,
-    disc_optimizer,
-    generator_optimizer,
-    epochs,
-    model_type,
-    output_dir,
-    config_vals=None,
-    test_dataset=None,
-    test_masks_original=None,
-    train_x=None,
-    trial: optuna.Trial = None,
+        auto_encoder,
+        discriminator,
+        train_dataset,
+        ae_optimizer,
+        disc_optimizer,
+        generator_optimizer,
+        epochs,
+        model_type,
+        output_dir,
+        config_vals=None,
+        test_dataset=None,
+        test_masks_original=None,
+        train_x=None,
+        trial: optuna.Trial = None,
 ):
     ae_loss_history = []
     disc_loss_history = []
@@ -119,11 +119,11 @@ def train_model(
             train_dataset.batch_size,
         )
         if (
-            config_vals is not None
-            and test_dataset is not None
-            and test_masks_original is not None
-            and train_x is not None
-            and trial is not None
+                config_vals is not None
+                and test_dataset is not None
+                and test_masks_original is not None
+                and train_x is not None
+                and trial is not None
         ):
             metrics = mid_run_calculate_metrics(
                 auto_encoder,
@@ -185,16 +185,23 @@ def main(config_vals: dict):
         get_orig=True,
     )
     # Create model
-    auto_encoder = Autoencoder(
-        config_vals["num_layers"],
-        config_vals["latent_dimension"],
+    auto_encoder = CustomAutoEncoder(
+        1,
         config_vals["num_filters"],
-        train_dataset.dataset[0][0].shape,
+        config_vals["latent_dimension"]
     ).to(DEVICE)
-    discriminator = Discriminator(
-        config_vals["num_layers"],
-        config_vals["latent_dimension"],
+    from torchsummary import summary
+    auto_encoder.eval()
+    for i, (x, y) in enumerate(train_dataset):
+        # auto_encoder(x.to(DEVICE))
+        auto_encoder(x.to(DEVICE))
+        break
+    summary(auto_encoder, (1, 32, 32))
+    auto_encoder.train()
+    discriminator = CustomDiscriminator(
+        1,
         config_vals["num_filters"],
+        config_vals["latent_dimension"]
     ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
@@ -351,8 +358,86 @@ def main_standard():
         main(config_vals)
 
 
+def rerun_evaluation(input_dir):
+    # Load config
+    config_file_path = os.path.join(input_dir, "config.json")
+    with open(config_file_path, "r") as f:
+        config_vals = json.load(f)
+
+    train_x, train_y, test_x, test_y, rfi_models = load_data(
+        excluded_rfi=config_vals["excluded_rfi"]
+    )
+    train_dataset, _ = process_into_dataset(
+        train_x,
+        train_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        filter=True,
+        shuffle=True,
+    )
+    test_dataset, test_masks_original = process_into_dataset(
+        test_x,
+        test_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        shuffle=False,
+        get_orig=True,
+    )
+
+    # Load model
+    model_path = os.path.join(input_dir, "autoencoder.pt")
+    model = CustomAutoEncoder(
+        1,
+        32,
+        32,
+    )
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    model = model.to(DEVICE)
+    metrics = evaluate_model(
+        model,
+        test_masks_original,
+        test_dataset,
+        train_dataset,
+        config_vals.get("neighbours"),
+        config_vals.get("batch_size"),
+        config_vals.get("latent_dimension"),
+        train_x[0].shape[0],
+        config_vals.get("patch_size"),
+        config_vals["model_name"],
+        config_vals["model_type"],
+        config_vals.get("anomaly_type"),
+        config_vals.get("dataset"),
+    )
+    print(json.dumps(metrics, indent=4))
+
+
+def move_file(old_filename: str, new_filename: str):
+    old_metric_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
+                                       old_filename)
+    old_metric_new_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
+                                           new_filename)
+    new_metric_filename = os.path.join("outputs", "DAE", "MISO", input_dir, old_filename)
+    new_metric_new_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
+                                           old_filename)
+    os.replace(old_metric_filename, old_metric_new_filename)
+    os.replace(new_metric_filename, new_metric_new_filename)
+
+
 if __name__ == "__main__":
-    main_sweep_threshold(10)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
-    main_sweep_noise(10)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
+    main_standard()
+    exit(0)
+    rerun_evaluation(os.path.join("outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_silky-squid"))
+    exit(0)
+    for input_dir in os.listdir("./outputs/DAE-NOISE/MISO"):
+        print(input_dir)
+        rerun_evaluation(os.path.join("outputs", "DAE-NOISE", "MISO", input_dir))
+        #move_file("metrics.json", "metrics-old.json")
+        #move_file("neighbours_20.png", "neighbours_20-old.png")
+        exit(0)
