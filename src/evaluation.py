@@ -17,8 +17,6 @@ from torch import nn
 from config import DEVICE
 from data import reconstruct_patches, reconstruct_latent_patches
 from models import Autoencoder
-from plotting import remove_stripes
-
 
 def infer(
         model: nn.Module,
@@ -205,9 +203,10 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
 def nln(z, z_query, neighbours):
     index = faiss.IndexFlatL2(z.shape[1])
     index.add(z.astype(np.float32))
-    neighbours_dist, indices = index.search(z_query.astype(np.float32), neighbours)
-    neighbour_mask = np.zeros([len(indices)], dtype=bool)
-    return neighbours_dist, indices, neighbour_mask
+    neighbours_dist, neighbours_idx = index.search(z_query.astype(np.float32), neighbours)
+    neighbour_mask = np.zeros([len(neighbours_idx)], dtype=bool)
+
+    return neighbours_dist, neighbours_idx, neighbour_mask
 
 
 def nln_errors(
@@ -220,10 +219,11 @@ def nln_errors(
     test_images = test_dataset.dataset[:][0].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
     neighbours = x_hat_train[neighbours_idx]
+
     error_nln = test_images_stacked - neighbours
     np.abs(error_nln, dtype=np.float32, out=error_nln)
     error = np.mean(error_nln, axis=1)  # nanmean for frNN
-    error = (error - np.min(error)) / (np.max(error) - np.min(error))
+
     error_recon = test_images - x_hat
     np.abs(error_recon, dtype=np.float32, out=error_recon)
     error[neighbour_mask] = error_recon[neighbour_mask]
@@ -275,6 +275,9 @@ def calculate_metrics(
 
     ae_metrics = _calculate_metrics(test_masks_original_reconstructed, error_recon)
     neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
+
+    x_hat = infer(model, test_dataset, batch_size, patch_size, False)
+
     nln_error = nln_errors(
         test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask
     )
@@ -317,7 +320,7 @@ def calculate_metrics(
         )
         smoothed_x_hat = np.ones_like(x_hat)
         for i in range(len(x_hat)):
-            smoothed_x_hat[i, 0, :, :] = remove_stripes(x_hat[i, 0, :, :])
+            smoothed_x_hat[i, 0, :, :] = x_hat[i, 0, :, :]
         x_hat_recon = reconstruct_patches(smoothed_x_hat, original_size, patch_size)
         plot_final_images(
             ae_metrics,

@@ -11,15 +11,6 @@ from torch.utils.data import TensorDataset
 from config import WANDB_ACTIVE, DEVICE
 
 
-def remove_stripes(image: np.ndarray):
-    temp = np.array(image, copy=True)
-    # Replace rightmost column with left neighbour
-    temp[-1, :] = temp[-2, :]
-    # Replace bottom row with upper neighbour
-    temp[:, -1] = temp[:, -2]
-    return temp
-
-
 def plot_intermediate_images(
         auto_encoder: nn.Module,
         dataset: TensorDataset,
@@ -41,7 +32,7 @@ def plot_intermediate_images(
                          )
         for i in range(2 * batch_size):
             # Iterating over the grid returns the Axes.
-            grid[i].imshow(remove_stripes(images[i, 0, :, :]) * 127.5 + 127.5, aspect='auto')
+            grid[i].imshow(images[i, 0, :, :] * 127.5 + 127.5, aspect='auto')
             grid[i].axis('off')
         plt.axis('off')
         output_path = os.path.join(outputdir, "results")

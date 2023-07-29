@@ -14,20 +14,20 @@ from utils import generate_model_name
 
 
 def run_trial(trial: optuna.Trial):
-    latent_dimension = trial.suggest_int("latent_dimension", 32, 64, 16)
+    latent_dimension = trial.suggest_categorical("latent_dimension", [8, 16, 32, 64])
     config_vals = {
-        "batch_size": trial.suggest_int("batch_size", 16, 128, 16),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
         "epochs": trial.suggest_int("epochs", 2, 128),
         "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-5, 1e-3),
         "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-5, 1e-3),
         "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-5, 1e-3),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
-        "num_layers": trial.suggest_int("num_layers", 2, 4),
+        "num_layers": 4,
         "latent_dimension": latent_dimension,
         "num_filters": trial.suggest_int("num_filters", 16, 64, 16),
         "neighbours": trial.suggest_int("neighbours", 1, 25),
-        "patch_size": latent_dimension,
-        "patch_stride": latent_dimension,
+        "patch_size": 32,
+        "patch_stride": 32,
         "threshold": 10,
         "anomaly_type": "MISO",
         "dataset": "HERA",
@@ -35,6 +35,7 @@ def run_trial(trial: optuna.Trial):
         "excluded_rfi": None,
         "time_length": None,
         "average_n": None,
+        'trial': trial._trial_id,
     }
     config_vals["model_name"] = generate_model_name(config_vals)
     print(json.dumps(config_vals, indent=4))
@@ -141,7 +142,7 @@ def run_trial(trial: optuna.Trial):
 
 def main_optuna():
     study = optuna.create_study(direction="minimize")
-    study.optimize(run_trial, n_trials=64)
+    study.optimize(run_trial, n_trials=32)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
@@ -170,3 +171,7 @@ def main_optuna():
         for trial_params in pruned_trials:
             pruned_trials_out.append(trial_params.params)
         json.dump(pruned_trials_out, f, indent=4)
+
+
+if __name__ == "__main__":
+    main_optuna()

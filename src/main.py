@@ -12,6 +12,7 @@ from loss import ae_loss, generator_loss, discriminator_loss
 from models import CustomAutoEncoder, CustomDiscriminator
 from plotting import plot_intermediate_images
 from utils import generate_model_name
+from torchsummary import summary
 
 
 def save_config(config: dict, output_dir: str):
@@ -190,7 +191,6 @@ def main(config_vals: dict):
         config_vals["num_filters"],
         config_vals["latent_dimension"]
     ).to(DEVICE)
-    from torchsummary import summary
     auto_encoder.eval()
     for i, (x, y) in enumerate(train_dataset):
         # auto_encoder(x.to(DEVICE))
@@ -236,6 +236,17 @@ def main(config_vals: dict):
     discriminator.eval()
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
+    train_dataset, _ = process_into_dataset(
+        train_x,
+        train_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        filter=True,
+        shuffle=False,
+    )
     # Test model
     evaluate_model(
         auto_encoder,
@@ -262,7 +273,7 @@ def main(config_vals: dict):
 def main_sweep_threshold(num_trials: int = 10):
     config_vals = {
         "batch_size": 16,
-        "epochs": 120,
+        "epochs": 50,
         "ae_learning_rate": 1.89e-4,
         "gen_learning_rate": 7.90e-4,
         "disc_learning_rate": 9.49e-4,
@@ -293,7 +304,7 @@ def main_sweep_threshold(num_trials: int = 10):
 def main_sweep_noise(num_trials: int = 10):
     config_vals = {
         "batch_size": 16,
-        "epochs": 120,
+        "epochs": 50,
         "ae_learning_rate": 1.89e-4,
         "gen_learning_rate": 7.90e-4,
         "disc_learning_rate": 9.49e-4,
@@ -327,7 +338,7 @@ def main_standard():
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     config_vals = {
         "batch_size": 16,
-        "epochs": 120,
+        "epochs": 50,
         "ae_learning_rate": 1.89e-4,
         "gen_learning_rate": 7.90e-4,
         "disc_learning_rate": 9.49e-4,
@@ -376,7 +387,7 @@ def rerun_evaluation(input_dir):
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         filter=True,
-        shuffle=True,
+        shuffle=False,
     )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
@@ -394,8 +405,8 @@ def rerun_evaluation(input_dir):
     model_path = os.path.join(input_dir, "autoencoder.pt")
     model = CustomAutoEncoder(
         1,
-        32,
-        32,
+        config_vals["num_filters"],
+        config_vals["latent_dimension"]
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -431,9 +442,17 @@ def move_file(old_filename: str, new_filename: str):
 
 
 if __name__ == "__main__":
+    main_sweep_threshold(10)
+    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
+    main_sweep_noise(10)
+    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
+
+    exit(0)
+
+
     main_standard()
     exit(0)
-    rerun_evaluation(os.path.join("outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_silky-squid"))
+    rerun_evaluation(os.path.join("outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_venomous-platypus"))
     exit(0)
     for input_dir in os.listdir("./outputs/DAE-NOISE/MISO"):
         print(input_dir)

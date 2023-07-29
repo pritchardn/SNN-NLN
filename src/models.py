@@ -29,11 +29,11 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(
-        self,
-        input_shape: tuple,
-        num_layers: int,
-        num_filters: int,
-        latent_dimension: int,
+            self,
+            input_shape: tuple,
+            num_layers: int,
+            num_filters: int,
+            latent_dimension: int,
     ):
         super().__init__()
         self.num_filters = num_filters
@@ -75,11 +75,11 @@ class Decoder(nn.Module):
 
 class Autoencoder(nn.Module):
     def __init__(
-        self,
-        num_layers: int,
-        latent_dimension: int,
-        num_filters: int,
-        input_shape: tuple,
+            self,
+            num_layers: int,
+            latent_dimension: int,
+            num_filters: int,
+            input_shape: tuple,
     ):
         super().__init__()
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)
@@ -110,38 +110,17 @@ class Discriminator(nn.Module):
 class CustomEncoder(nn.Module):
     def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
         super().__init__()
-        """
-        nn.Conv2d(num_input_channels, base_channels, 3, 2, padding=1),
-        nn.ReLU(),
-        nn.BatchNorm2d(base_channels),
-        nn.Dropout(0.05),
-        nn.Conv2d(base_channels, base_channels, 3, padding=1),
-        nn.ReLU(),
-        nn.BatchNorm2d(base_channels),
-        nn.Dropout(0.05),
-        """
         self.net = nn.Sequential(
             nn.Conv2d(num_input_channels, base_channels, kernel_size=3, padding=1, stride=2),
-            # 32x32 => 16x16
             nn.ReLU(),
             nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels),
-            nn.Dropout(0.05),
             nn.Conv2d(base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
-            # 16x16 => 8x8
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels * 2),
-            nn.Dropout(0.05),
             nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels * 2),
-            nn.Dropout(0.05),
             nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
-            # 8x8 => 4x4
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels * 2),
-            nn.Dropout(0.05),
             nn.Flatten(),
             nn.Linear(base_channels * 2 * 16, latent_dimension),
         )
@@ -158,25 +137,20 @@ class CustomDecoder(nn.Module):
             nn.ReLU(),
         )
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(2 * base_channels, 2 * base_channels, 3, 2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(2 * base_channels, 2 * base_channels, 3, 2, padding=1,
+                               output_padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels * 2),
-            nn.Dropout(0.05),
             nn.Conv2d(base_channels * 2, base_channels * 2, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels * 2),
-            nn.Dropout(0.05),
-            nn.ConvTranspose2d(2 * base_channels, base_channels, kernel_size=3, output_padding=1, padding=1,
-                               stride=2),  # 8x8 => 16x16
+            nn.ConvTranspose2d(2 * base_channels, base_channels, kernel_size=3, output_padding=1,
+                               padding=1,
+                               stride=2),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels),
-            nn.Dropout(0.05),
             nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(base_channels),
-            nn.Dropout(0.05),
             nn.ConvTranspose2d(
-                base_channels, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2
+                base_channels, num_input_channels, kernel_size=3, output_padding=1, padding=1,
+                stride=2
             ),  # 16x16 => 32x32
             nn.Sigmoid(),
         )
