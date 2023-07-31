@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-MODELS = ["SDAE", "DAE"]
+MODELS = ["DAE", "DAE-NOISE", "DAE-THRESHOLD"]
 
 
 def write_csv_output_from_dict(
@@ -112,16 +112,16 @@ def make_ood_plot(results: pd.DataFrame):
         model_results = (
             sub_results[sub_results["model_type"] == model]
             .groupby("excluded_rfi")
-            .mean("auroc", "auprc", "f1")
+            .agg({"auroc": ['mean', 'std'], "auprc": ['mean', 'std'], "f1": ['mean', 'std']})
             .sort_values("excluded_rfi")
         )
         axs[0].bar(
-            index + width / 2 * i, model_results["auroc"], width=width, label=model
+            index + width / 2 * i, model_results["auroc"]["mean"], width=width, label=model, yerr=model_results["auroc"]["std"]
         )
         axs[1].bar(
-            index + width / 2 * i, model_results["auprc"], width=width, label=model
+            index + width / 2 * i, model_results["auprc"]["mean"], width=width, label=model, yerr=model_results["auprc"]["std"]
         )
-        axs[2].bar(index + width / 2 * i, model_results["f1"], width=width, label=model)
+        axs[2].bar(index + width / 2 * i, model_results["f1"]["mean"], width=width, label=model, yerr=model_results["f1"]["std"])
         i = -i
 
     axs[0].legend()
