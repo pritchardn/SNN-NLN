@@ -9,12 +9,12 @@ from config import DEVICE
 from data import process_into_dataset, load_data
 from evaluation import plot_loss_history, evaluate_model
 from main import train_model, save_config
-from models import Autoencoder, Discriminator
+from models import CustomAutoEncoder, CustomDiscriminator
 from utils import generate_model_name
 
 
 def run_trial(trial: optuna.Trial):
-    latent_dimension = trial.suggest_categorical("latent_dimension", [8, 16, 32, 64])
+    latent_dimension = 32
     config_vals = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
         "epochs": trial.suggest_int("epochs", 2, 128),
@@ -24,7 +24,7 @@ def run_trial(trial: optuna.Trial):
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
         "num_layers": 4,
         "latent_dimension": latent_dimension,
-        "num_filters": trial.suggest_int("num_filters", 16, 64, 16),
+        "num_filters": 16,
         "neighbours": trial.suggest_int("neighbours", 1, 25),
         "patch_size": 32,
         "patch_stride": 32,
@@ -69,16 +69,15 @@ def run_trial(trial: optuna.Trial):
         get_orig=True,
     )
     # Create model
-    auto_encoder = Autoencoder(
-        config_vals["num_layers"],
-        config_vals["latent_dimension"],
+    auto_encoder = CustomAutoEncoder(
+        1,
         config_vals["num_filters"],
-        train_dataset.dataset[0][0].shape,
+        config_vals["latent_dimension"],
     ).to(DEVICE)
-    discriminator = Discriminator(
-        config_vals["num_layers"],
-        config_vals["latent_dimension"],
+    discriminator = CustomDiscriminator(
+        1,
         config_vals["num_filters"],
+        config_vals["latent_dimension"],
     ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
