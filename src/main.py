@@ -21,7 +21,7 @@ def save_config(config: dict, output_dir: str):
 
 
 def train_step(
-        auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
+    auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
 ):
     auto_encoder.train()
     discriminator.train()
@@ -49,20 +49,20 @@ def train_step(
 
 
 def train_model(
-        auto_encoder,
-        discriminator,
-        train_dataset,
-        ae_optimizer,
-        disc_optimizer,
-        generator_optimizer,
-        epochs,
-        model_type,
-        output_dir,
-        config_vals=None,
-        test_dataset=None,
-        test_masks_original=None,
-        train_x=None,
-        trial: optuna.Trial = None,
+    auto_encoder,
+    discriminator,
+    train_dataset,
+    ae_optimizer,
+    disc_optimizer,
+    generator_optimizer,
+    epochs,
+    model_type,
+    output_dir,
+    config_vals=None,
+    test_dataset=None,
+    test_masks_original=None,
+    train_x=None,
+    trial: optuna.Trial = None,
 ):
     ae_loss_history = []
     disc_loss_history = []
@@ -120,11 +120,11 @@ def train_model(
             train_dataset.batch_size,
         )
         if (
-                config_vals is not None
-                and test_dataset is not None
-                and test_masks_original is not None
-                and train_x is not None
-                and trial is not None
+            config_vals is not None
+            and test_dataset is not None
+            and test_masks_original is not None
+            and train_x is not None
+            and trial is not None
         ):
             metrics = mid_run_calculate_metrics(
                 auto_encoder,
@@ -187,9 +187,7 @@ def main(config_vals: dict):
     )
     # Create model
     auto_encoder = CustomAutoEncoder(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"]
+        1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     auto_encoder.eval()
     for i, (x, y) in enumerate(train_dataset):
@@ -199,9 +197,7 @@ def main(config_vals: dict):
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
     discriminator = CustomDiscriminator(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"]
+        1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
@@ -404,9 +400,7 @@ def rerun_evaluation(input_dir):
     # Load model
     model_path = os.path.join(input_dir, "autoencoder.pt")
     model = CustomAutoEncoder(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"]
+        1, config_vals["num_filters"], config_vals["latent_dimension"]
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -430,13 +424,18 @@ def rerun_evaluation(input_dir):
 
 
 def move_file(old_filename: str, new_filename: str):
-    old_metric_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
-                                       old_filename)
-    old_metric_new_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
-                                           new_filename)
-    new_metric_filename = os.path.join("outputs", "DAE", "MISO", input_dir, old_filename)
-    new_metric_new_filename = os.path.join("outputs", "DAE-NOISE", "MISO", input_dir,
-                                           old_filename)
+    old_metric_filename = os.path.join(
+        "outputs", "DAE-NOISE", "MISO", input_dir, old_filename
+    )
+    old_metric_new_filename = os.path.join(
+        "outputs", "DAE-NOISE", "MISO", input_dir, new_filename
+    )
+    new_metric_filename = os.path.join(
+        "outputs", "DAE", "MISO", input_dir, old_filename
+    )
+    new_metric_new_filename = os.path.join(
+        "outputs", "DAE-NOISE", "MISO", input_dir, old_filename
+    )
     os.replace(old_metric_filename, old_metric_new_filename)
     os.replace(new_metric_filename, new_metric_new_filename)
 
@@ -449,14 +448,17 @@ if __name__ == "__main__":
 
     exit(0)
 
-
     main_standard()
     exit(0)
-    rerun_evaluation(os.path.join("outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_venomous-platypus"))
+    rerun_evaluation(
+        os.path.join(
+            "outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_venomous-platypus"
+        )
+    )
     exit(0)
     for input_dir in os.listdir("./outputs/DAE-NOISE/MISO"):
         print(input_dir)
         rerun_evaluation(os.path.join("outputs", "DAE-NOISE", "MISO", input_dir))
-        #move_file("metrics.json", "metrics-old.json")
-        #move_file("neighbours_20.png", "neighbours_20-old.png")
+        # move_file("metrics.json", "metrics-old.json")
+        # move_file("neighbours_20.png", "neighbours_20-old.png")
         exit(0)

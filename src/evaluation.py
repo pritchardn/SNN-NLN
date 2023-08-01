@@ -18,12 +18,13 @@ from config import DEVICE
 from data import reconstruct_patches, reconstruct_latent_patches
 from models import Autoencoder
 
+
 def infer(
-        model: nn.Module,
-        dataset: torch.utils.data.DataLoader,
-        batch_size: int,
-        edge_size: int,
-        latent=False,
+    model: nn.Module,
+    dataset: torch.utils.data.DataLoader,
+    batch_size: int,
+    edge_size: int,
+    latent=False,
 ):
     if latent:
         output = np.empty([len(dataset.dataset), edge_size], dtype=np.float32)
@@ -37,19 +38,19 @@ def infer(
         x = x.to(DEVICE)
         y = y.to(DEVICE)
         predictions = model(x).cpu().detach().numpy()
-        output[start: start + len(predictions), ...] = predictions
+        output[start : start + len(predictions), ...] = predictions
         start += len(predictions)
     return output
 
 
 def save_metrics(
-        ae_metrics: dict,
-        nln_metrics: dict,
-        dist_metrics: dict,
-        combined_metrics: dict,
-        model_type: str,
-        anomaly_type: str,
-        model_name: str,
+    ae_metrics: dict,
+    nln_metrics: dict,
+    dist_metrics: dict,
+    combined_metrics: dict,
+    model_type: str,
+    anomaly_type: str,
+    model_name: str,
 ):
     output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
     os.makedirs(output_filepath, exist_ok=True)
@@ -67,18 +68,18 @@ def save_metrics(
 
 
 def plot_final_images(
-        metrics: dict,
-        neighbour: int,
-        model_type: str,
-        anomaly_type: str,
-        model_name: str,
-        test_images_reconstructed,
-        test_masks_reconstructed,
-        error_reconstructed,
-        nln_error_reconstructed,
-        distrubtions_reconstructed,
-        combined_reconstructed,
-        latent_reconstructed,
+    metrics: dict,
+    neighbour: int,
+    model_type: str,
+    anomaly_type: str,
+    model_name: str,
+    test_images_reconstructed,
+    test_masks_reconstructed,
+    error_reconstructed,
+    nln_error_reconstructed,
+    distrubtions_reconstructed,
+    combined_reconstructed,
+    latent_reconstructed,
 ):
     fig, axs = plt.subplots(10, 7, figsize=(10, 8))
     axs[0, 0].set_title("Inp", fontsize=5)
@@ -157,15 +158,15 @@ def plot_final_images(
 
 
 def get_error_dataset(
-        images: torch.utils.data.DataLoader, x_hat: np.ndarray, image_size: int
+    images: torch.utils.data.DataLoader, x_hat: np.ndarray, image_size: int
 ):
     output = np.empty(
         [len(images.dataset), 1, image_size, image_size], dtype=np.float32
     )
     start = 0
     for batch, (x, y) in enumerate(images):
-        error = x.cpu().detach().numpy() - x_hat[start: start + len(x), ...]
-        output[0: len(error), ...] = error
+        error = x.cpu().detach().numpy() - x_hat[start : start + len(x), ...]
+        output[0 : len(error), ...] = error
         start += len(error)
     return output
 
@@ -174,8 +175,8 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     if error_recon.shape[1] == 1 and test_masks_orig_recon.shape[1] == 1:
         error_recon = np.moveaxis(error_recon, 1, -1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, 1, -1)
-    fpr, tpr, thr = roc_curve(test_masks_orig_recon.flatten() > 0,
-                              error_recon.flatten()
+    fpr, tpr, thr = roc_curve(
+        test_masks_orig_recon.flatten() > 0, error_recon.flatten()
     )
     acc = balanced_accuracy_score(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten() > 0
@@ -203,18 +204,20 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
 def nln(z, z_query, neighbours):
     index = faiss.IndexFlatL2(z.shape[1])
     index.add(z.astype(np.float32))
-    neighbours_dist, neighbours_idx = index.search(z_query.astype(np.float32), neighbours)
+    neighbours_dist, neighbours_idx = index.search(
+        z_query.astype(np.float32), neighbours
+    )
     neighbour_mask = np.zeros([len(neighbours_idx)], dtype=bool)
 
     return neighbours_dist, neighbours_idx, neighbour_mask
 
 
 def nln_errors(
-        test_dataset: torch.utils.data.DataLoader,
-        x_hat,
-        x_hat_train,
-        neighbours_idx,
-        neighbour_mask,
+    test_dataset: torch.utils.data.DataLoader,
+    x_hat,
+    x_hat_train,
+    neighbours_idx,
+    neighbour_mask,
 ):
     test_images = test_dataset.dataset[:][0].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
@@ -233,7 +236,7 @@ def nln_errors(
 def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
     dists = np.mean(neighbours_dist, axis=tuple(range(1, neighbours_dist.ndim)))
     if patch_size is not None:
-        dists = np.array([[d] * patch_size ** 2 for i, d in enumerate(dists)]).reshape(
+        dists = np.array([[d] * patch_size**2 for i, d in enumerate(dists)]).reshape(
             len(dists), patch_size, patch_size
         )
         dists_recon = reconstruct_patches(
@@ -245,20 +248,20 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
 
 
 def calculate_metrics(
-        model: Autoencoder,
-        test_masks_original: np.ndarray,
-        test_dataset: torch.utils.data.DataLoader,
-        train_dataset: torch.utils.data.DataLoader,
-        neighbours: int,
-        batch_size: int,
-        model_name: str,
-        model_type: str,
-        anomaly_type: str,
-        latent_dimension: int,
-        original_size: int,
-        patch_size: int = None,
-        dataset="HERA",
-        evaluate_run=False,
+    model: Autoencoder,
+    test_masks_original: np.ndarray,
+    test_dataset: torch.utils.data.DataLoader,
+    train_dataset: torch.utils.data.DataLoader,
+    neighbours: int,
+    batch_size: int,
+    model_name: str,
+    model_type: str,
+    anomaly_type: str,
+    latent_dimension: int,
+    original_size: int,
+    patch_size: int = None,
+    dataset="HERA",
+    evaluate_run=False,
 ):
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
@@ -344,15 +347,15 @@ def calculate_metrics(
 
 
 def mid_run_calculate_metrics(
-        model: Autoencoder,
-        test_masks_original: np.ndarray,
-        test_dataset: torch.utils.data.DataLoader,
-        train_dataset: torch.utils.data.DataLoader,
-        neighbours: int,
-        batch_size: int,
-        latent_dimension: int,
-        original_size: int,
-        patch_size: int = None,
+    model: Autoencoder,
+    test_masks_original: np.ndarray,
+    test_dataset: torch.utils.data.DataLoader,
+    train_dataset: torch.utils.data.DataLoader,
+    neighbours: int,
+    batch_size: int,
+    latent_dimension: int,
+    original_size: int,
+    patch_size: int = None,
 ):
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
@@ -383,20 +386,20 @@ def mid_run_calculate_metrics(
 
 
 def evaluate_model(
-        model,
-        test_masks,
-        test_dataset,
-        train_dataset,
-        neighbours,
-        batch_size,
-        latent_dimension,
-        original_size,
-        patch_size,
-        model_name,
-        model_type,
-        anomaly_type,
-        dataset,
-        evaluate_run=False,
+    model,
+    test_masks,
+    test_dataset,
+    train_dataset,
+    neighbours,
+    batch_size,
+    latent_dimension,
+    original_size,
+    patch_size,
+    model_name,
+    model_type,
+    anomaly_type,
+    dataset,
+    evaluate_run=False,
 ):
     ae_metrics, nln_metrics, dist_metrics, combined_metrics = calculate_metrics(
         model,

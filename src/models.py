@@ -29,15 +29,15 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(
-            self,
-            input_shape: tuple,
-            num_layers: int,
-            num_filters: int,
-            latent_dimension: int,
+        self,
+        input_shape: tuple,
+        num_layers: int,
+        num_filters: int,
+        latent_dimension: int,
     ):
         super().__init__()
         self.num_filters = num_filters
-        self.in_dim = input_shape[-1] // (2 ** num_layers) - 1
+        self.in_dim = input_shape[-1] // (2**num_layers) - 1
         self.linear = nn.Linear(
             latent_dimension, self.in_dim * self.in_dim * num_filters
         )
@@ -75,11 +75,11 @@ class Decoder(nn.Module):
 
 class Autoencoder(nn.Module):
     def __init__(
-            self,
-            num_layers: int,
-            latent_dimension: int,
-            num_filters: int,
-            input_shape: tuple,
+        self,
+        num_layers: int,
+        latent_dimension: int,
+        num_filters: int,
+        input_shape: tuple,
     ):
         super().__init__()
         self.encoder = Encoder(num_layers, latent_dimension, num_filters)
@@ -108,18 +108,26 @@ class Discriminator(nn.Module):
 
 
 class CustomEncoder(nn.Module):
-    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(num_input_channels, base_channels, kernel_size=3, padding=1, stride=2),
+            nn.Conv2d(
+                num_input_channels, base_channels, kernel_size=3, padding=1, stride=2
+            ),
             nn.ReLU(),
             nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Conv2d(base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
+            nn.Conv2d(
+                base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
+            ),
             nn.ReLU(),
             nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2),
+            nn.Conv2d(
+                2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
+            ),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(base_channels * 2 * 16, latent_dimension),
@@ -130,27 +138,39 @@ class CustomEncoder(nn.Module):
 
 
 class CustomDecoder(nn.Module):
-    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
         super().__init__()
         self.linear = nn.Sequential(
             nn.Linear(latent_dimension, 2 * 16 * base_channels),
             nn.ReLU(),
         )
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(2 * base_channels, 2 * base_channels, 3, 2, padding=1,
-                               output_padding=1),
+            nn.ConvTranspose2d(
+                2 * base_channels, 2 * base_channels, 3, 2, padding=1, output_padding=1
+            ),
             nn.ReLU(),
             nn.Conv2d(base_channels * 2, base_channels * 2, 3, padding=1),
             nn.ReLU(),
-            nn.ConvTranspose2d(2 * base_channels, base_channels, kernel_size=3, output_padding=1,
-                               padding=1,
-                               stride=2),
+            nn.ConvTranspose2d(
+                2 * base_channels,
+                base_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),
             nn.ReLU(),
             nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.ConvTranspose2d(
-                base_channels, num_input_channels, kernel_size=3, output_padding=1, padding=1,
-                stride=2
+                base_channels,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
             ),  # 16x16 => 32x32
             nn.Sigmoid(),
         )
@@ -163,10 +183,16 @@ class CustomDecoder(nn.Module):
 
 
 class CustomAutoEncoder(nn.Module):
-    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
         super().__init__()
-        self.encoder = CustomEncoder(num_input_channels, base_channels, latent_dimension)
-        self.decoder = CustomDecoder(num_input_channels, base_channels, latent_dimension)
+        self.encoder = CustomEncoder(
+            num_input_channels, base_channels, latent_dimension
+        )
+        self.decoder = CustomDecoder(
+            num_input_channels, base_channels, latent_dimension
+        )
 
     def forward(self, x):
         z = self.encoder(x)
@@ -175,9 +201,13 @@ class CustomAutoEncoder(nn.Module):
 
 
 class CustomDiscriminator(nn.Module):
-    def __init__(self, num_input_channels: int, base_channels: int, latent_dimension: int):
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
         super().__init__()
-        self.encoder = CustomEncoder(num_input_channels, base_channels, latent_dimension)
+        self.encoder = CustomEncoder(
+            num_input_channels, base_channels, latent_dimension
+        )
         self.flatten = nn.Flatten()
         self.output = nn.LazyLinear(1)
         self.sigmoid = nn.Sigmoid()
