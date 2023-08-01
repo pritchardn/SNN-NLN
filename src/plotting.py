@@ -1,11 +1,15 @@
+"""
+Contains plotting functions used throughout training.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import math
 import os
 
 import numpy as np
-import torch.nn as nn
+from torch import nn
+from torch.utils.data import TensorDataset
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
-from torch.utils.data import TensorDataset
 
 from config import DEVICE
 
@@ -18,11 +22,16 @@ def plot_intermediate_images(
     outputdir: str,
     batch_size: int,
 ):
-    for batch, (x, y) in enumerate(dataset):
-        x = x.to(DEVICE)
-        predictions = auto_encoder(x).cpu().detach().numpy()
-        x = x.cpu().detach().numpy()
-        images = np.concatenate((x, predictions), axis=0)
+    """
+    Plots intermediate images from the autoencoder.
+    Plots will be arranged in two square grids, the top containing images from the dataset.
+    The bottom containing the corresponding predictions from the autoencoder.
+    """
+    for image_batch, _ in dataset:
+        image_batch = image_batch.to(DEVICE)
+        predictions = auto_encoder(image_batch).cpu().detach().numpy()
+        image_batch = image_batch.cpu().detach().numpy()
+        images = np.concatenate((image_batch, predictions), axis=0)
         side_length = int(math.sqrt(batch_size))
         fig = plt.figure(figsize=(side_length, side_length * 2))
         grid = ImageGrid(
@@ -38,7 +47,6 @@ def plot_intermediate_images(
         plt.axis("off")
         output_path = os.path.join(outputdir, "results")
         os.makedirs(output_path, exist_ok=True)
-        plot_filename = f"{output_path}{os.sep}{title}-{epoch}.png"
-        plt.savefig(plot_filename)
+        plt.savefig(os.path.join(output_path, f"{title}-{epoch}.png"))
         plt.close("all")
         break
