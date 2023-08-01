@@ -32,7 +32,7 @@ def run_trial(trial: optuna.Trial):
         "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-5, 1e-3),
         "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-5, 1e-3),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
-        "num_layers": 4,
+        "num_layers": 5,
         "latent_dimension": latent_dimension,
         "num_filters": 16,
         "neighbours": trial.suggest_int("neighbours", 1, 25),

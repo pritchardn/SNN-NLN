@@ -13,7 +13,7 @@ STANDARD_PARAMS = {
     "gen_learning_rate": 7.90e-4,
     "disc_learning_rate": 9.49e-4,
     "optimizer": "RMSprop",
-    "num_layers": 4,
+    "num_layers": 5,
     "latent_dimension": 32,
     "num_filters": 16,
     "neighbours": 20,
