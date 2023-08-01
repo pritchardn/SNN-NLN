@@ -1,34 +1,51 @@
+"""
+Main training routine for the DAE model.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import json
 import os
 
 import optuna
 import torch
 
-from config import DEVICE
+from torchsummary import summary
+from config import DEVICE, STANDARD_PARAMS
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
 from plotting import plot_intermediate_images
 from utils import generate_model_name
-from torchsummary import summary
 
 
 def save_config(config: dict, output_dir: str):
-    with open(os.path.join(output_dir, "config.json"), "w") as f:
-        json.dump(config, f, indent=4)
+    """
+    Saves the config to a json file.
+    """
+    with open(
+        os.path.join(output_dir, "config.json"), "w", encoding="utf-8"
+    ) as config_file:
+        json.dump(config, config_file, indent=4)
 
 
 def train_step(
-    auto_encoder, discriminator, x, ae_optimizer, disc_optimizer, generator_optimizer
+    auto_encoder,
+    discriminator,
+    x_images,
+    ae_optimizer,
+    disc_optimizer,
+    generator_optimizer,
 ):
+    """
+    Executes a single training step for the autoencoder, discriminator and generator.
+    """
     auto_encoder.train()
     discriminator.train()
-    x_hat = auto_encoder(x)
-    real_output, _ = discriminator(x)
+    x_hat = auto_encoder(x_images)
+    real_output, _ = discriminator(x_images)
     fake_output, _ = discriminator(x_hat)
 
-    auto_loss = ae_loss(x, x_hat)
+    auto_loss = ae_loss(x_images, x_hat)
     disc_loss = discriminator_loss(real_output, fake_output, 1)
     gen_loss = generator_loss(fake_output, 1)
 
@@ -63,22 +80,25 @@ def train_model(
     train_x=None,
     trial: optuna.Trial = None,
 ):
+    """
+    Trains the auto-encoder, discriminator and generator.
+    """
     ae_loss_history = []
     disc_loss_history = []
     gen_loss_history = []
     metrics = {"mse": 1.0}
-    for t in range(epochs):
-        print(f"Epoch {t + 1}\n-----------")
+    for epoch in range(epochs):
+        print(f"Epoch {epoch + 1}\n-----------")
         running_ae_loss = 0.0
         running_disc_loss = 0.0
         running_gen_loss = 0.0
-        for batch, (x, y) in enumerate(train_dataset):
-            x, y = x.to(DEVICE), y.to(DEVICE)
+        for x_images, y_masks in train_dataset:
+            x_images, y_masks = x_images.to(DEVICE), y_masks.to(DEVICE)
 
-            ae_loss, disc_loss, gen_loss = train_step(
+            ae_loss_val, disc_loss, gen_loss = train_step(
                 auto_encoder,
                 discriminator,
-                x,
+                x_images,
                 ae_optimizer,
                 disc_optimizer,
                 generator_optimizer,
@@ -86,9 +106,9 @@ def train_model(
             ae_optimizer.zero_grad()
             disc_optimizer.zero_grad()
             generator_optimizer.zero_grad()
-            running_ae_loss += ae_loss.item() * len(x)
-            running_disc_loss += disc_loss.item() * len(x)
-            running_gen_loss += gen_loss.item() * len(x)
+            running_ae_loss += ae_loss_val.item() * len(x_images)
+            running_disc_loss += disc_loss.item() * len(x_images)
+            running_gen_loss += gen_loss.item() * len(x_images)
 
         interim_ae_loss = running_ae_loss / len(train_dataset)
         interim_disc_loss = running_disc_loss / len(train_dataset)
@@ -104,7 +124,7 @@ def train_model(
         plot_intermediate_images(
             auto_encoder,
             train_dataset,
-            t + 1,
+            epoch + 1,
             model_type,
             output_dir,
             train_dataset.batch_size,
@@ -127,7 +147,7 @@ def train_model(
                 train_x[0].shape[0],
                 config_vals["patch_size"],
             )
-            trial.report(metrics["mse"], t)
+            trial.report(metrics["mse"], epoch)
             print(f"mse:\t{metrics['mse']}")
             if trial.should_prune():
                 raise optuna.TrialPruned()
@@ -142,13 +162,16 @@ def train_model(
 
 
 def main(config_vals: dict):
+    """
+    Main training routine for the DAE model. Loads data creates model, trains and reports.
+    """
     config_vals["model_name"] = generate_model_name(config_vals)
     print(config_vals["model_name"])
     output_dir = (
         f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
-    train_x, train_y, test_x, test_y, rfi_models = load_data(
+    train_x, train_y, test_x, test_y, _ = load_data(
         excluded_rfi=config_vals["excluded_rfi"]
     )
     train_dataset, _ = process_into_dataset(
@@ -178,9 +201,8 @@ def main(config_vals: dict):
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     auto_encoder.eval()
-    for i, (x, y) in enumerate(train_dataset):
-        # auto_encoder(x.to(DEVICE))
-        auto_encoder(x.to(DEVICE))
+    for shape_test in train_dataset:
+        auto_encoder(shape_test.to(DEVICE))
         break
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
@@ -199,7 +221,7 @@ def main(config_vals: dict):
     )
     # Train model
     (
-        accuracy,
+        _,
         auto_encoder,
         discriminator,
         ae_loss_history,
@@ -252,94 +274,43 @@ def main(config_vals: dict):
 
 
 def main_sweep_threshold(num_trials: int = 10):
-    config_vals = {
-        "batch_size": 16,
-        "epochs": 50,
-        "ae_learning_rate": 1.89e-4,
-        "gen_learning_rate": 7.90e-4,
-        "disc_learning_rate": 9.49e-4,
-        "optimizer": "RMSprop",
-        "num_layers": 4,
-        "latent_dimension": 32,
-        "num_filters": 16,
-        "neighbours": 20,
-        "patch_size": 32,
-        "patch_stride": 32,
-        "threshold": 10,
-        "anomaly_type": "MISO",
-        "dataset": "HERA",
-        "model_type": "DAE",
-        "excluded_rfi": None,
-        "time_length": None,
-        "average_n": None,
-        "trial": 1,
-    }
+    """
+    Runs a number of trials sweeping through the AOFlagger threshold parameter.
+    :param num_trials: How many trials to execute for a single threshold
+    """
+    config_vals = STANDARD_PARAMS
     threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
     for threshold in threshold_range:
         config_vals["threshold"] = threshold
-        for t in range(1, num_trials + 1):
-            config_vals["trial"] = t
+        for trial in range(1, num_trials + 1):
+            config_vals["trial"] = trial
             main(config_vals)
 
 
 def main_sweep_noise(num_trials: int = 10):
-    config_vals = {
-        "batch_size": 16,
-        "epochs": 50,
-        "ae_learning_rate": 1.89e-4,
-        "gen_learning_rate": 7.90e-4,
-        "disc_learning_rate": 9.49e-4,
-        "optimizer": "RMSprop",
-        "num_layers": 4,
-        "latent_dimension": 32,
-        "num_filters": 16,
-        "neighbours": 20,
-        "patch_size": 32,
-        "patch_stride": 32,
-        "threshold": 10,
-        "anomaly_type": "MISO",
-        "dataset": "HERA",
-        "model_type": "DAE",
-        "excluded_rfi": None,
-        "time_length": None,
-        "average_n": None,
-        "trial": 1,
-    }
+    """
+    Runs a number of trials sweeping through each rfi noise type for out-of-distribution tests.
+    :param num_trials: How many trials to execute for a single threshold
+    """
+    config_vals = STANDARD_PARAMS
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     for rfi_excluded in rfi_exclusion_vals:
         config_vals["excluded_rfi"] = rfi_excluded
-        for t in range(1, num_trials + 1):
-            config_vals["trial"] = t
+        for trial in range(1, num_trials + 1):
+            config_vals["trial"] = trial
             main(config_vals)
 
 
 def main_standard():
-    SWEEP = False
+    """
+    A single standard trial of the DAE model.
+    If sweep is set to true, a simple hyperparameter grid search is performed.
+    """
+    sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    config_vals = {
-        "batch_size": 16,
-        "epochs": 50,
-        "ae_learning_rate": 1.89e-4,
-        "gen_learning_rate": 7.90e-4,
-        "disc_learning_rate": 9.49e-4,
-        "optimizer": "RMSprop",
-        "num_layers": 4,
-        "latent_dimension": 32,
-        "num_filters": 16,
-        "neighbours": 20,
-        "patch_size": 32,
-        "patch_stride": 32,
-        "threshold": 10,
-        "anomaly_type": "MISO",
-        "dataset": "HERA",
-        "model_type": "DAE",
-        "excluded_rfi": None,
-        "time_length": None,
-        "average_n": None,
-        "trial": 1,
-    }
-    if SWEEP:
+    config_vals = STANDARD_PARAMS
+    if sweep:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
                 config_vals["num_layers"] = num_layers
@@ -351,12 +322,17 @@ def main_standard():
 
 
 def rerun_evaluation(input_dir):
+    """
+    Reruns the final evaluation routine for a given DAE trial.
+    Useful if changes are made to the evaluation routine.
+    """
     # Load config
-    config_file_path = os.path.join(input_dir, "config.json")
-    with open(config_file_path, "r") as f:
-        config_vals = json.load(f)
+    with open(
+        os.path.join(input_dir, "config.json"), "r", encoding="utf-8"
+    ) as config_file:
+        config_vals = json.load(config_file)
 
-    train_x, train_y, test_x, test_y, rfi_models = load_data(
+    train_x, train_y, test_x, test_y, _ = load_data(
         excluded_rfi=config_vals["excluded_rfi"]
     )
     train_dataset, _ = process_into_dataset(
@@ -384,9 +360,7 @@ def rerun_evaluation(input_dir):
 
     # Load model
     model_path = os.path.join(input_dir, "autoencoder.pt")
-    model = AutoEncoder(
-        1, config_vals["num_filters"], config_vals["latent_dimension"]
-    )
+    model = AutoEncoder(1, config_vals["num_filters"], config_vals["latent_dimension"])
     model.load_state_dict(torch.load(model_path))
     model.eval()
     model = model.to(DEVICE)
@@ -408,42 +382,8 @@ def rerun_evaluation(input_dir):
     print(json.dumps(metrics, indent=4))
 
 
-def move_file(old_filename: str, new_filename: str):
-    old_metric_filename = os.path.join(
-        "outputs", "DAE-NOISE", "MISO", input_dir, old_filename
-    )
-    old_metric_new_filename = os.path.join(
-        "outputs", "DAE-NOISE", "MISO", input_dir, new_filename
-    )
-    new_metric_filename = os.path.join(
-        "outputs", "DAE", "MISO", input_dir, old_filename
-    )
-    new_metric_new_filename = os.path.join(
-        "outputs", "DAE-NOISE", "MISO", input_dir, old_filename
-    )
-    os.replace(old_metric_filename, old_metric_new_filename)
-    os.replace(new_metric_filename, new_metric_new_filename)
-
-
 if __name__ == "__main__":
     main_sweep_threshold(10)
     os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
     main_sweep_noise(10)
     os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
-
-    exit(0)
-
-    main_standard()
-    exit(0)
-    rerun_evaluation(
-        os.path.join(
-            "outputs", "DAE", "MISO", "DAE_MISO_HERA_32_2_10_trial_1_venomous-platypus"
-        )
-    )
-    exit(0)
-    for input_dir in os.listdir("./outputs/DAE-NOISE/MISO"):
-        print(input_dir)
-        rerun_evaluation(os.path.join("outputs", "DAE-NOISE", "MISO", input_dir))
-        # move_file("metrics.json", "metrics-old.json")
-        # move_file("neighbours_20.png", "neighbours_20-old.png")
-        exit(0)
