@@ -3,9 +3,8 @@ import os
 
 import optuna
 import torch
-import wandb
 
-from config import WANDB_ACTIVE, DEVICE
+from config import DEVICE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
@@ -95,15 +94,6 @@ def train_model(
         interim_disc_loss = running_disc_loss / len(train_dataset)
         interim_gen_loss = running_gen_loss / len(train_dataset)
 
-        if WANDB_ACTIVE:
-            wandb.log(
-                {
-                    "autoencoder_train_loss": interim_ae_loss,
-                    "discriminator_train_loss": interim_disc_loss,
-                    "generator_train_loss": interim_gen_loss,
-                }
-            )
-
         ae_loss_history.append(interim_ae_loss)
         disc_loss_history.append(interim_disc_loss)
         gen_loss_history.append(interim_gen_loss)
@@ -158,8 +148,6 @@ def main(config_vals: dict):
         f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
-    if WANDB_ACTIVE:
-        wandb.init(project="snn-nln-1", config=config_vals)
     train_x, train_y, test_x, test_y, rfi_models = load_data(
         excluded_rfi=config_vals["excluded_rfi"]
     )
@@ -261,9 +249,6 @@ def main(config_vals: dict):
     )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_config(config_vals, output_dir)
-    # convert_to_snn(auto_encoder, train_dataset, test_dataset)
-    if WANDB_ACTIVE:
-        wandb.finish()
 
 
 def main_sweep_threshold(num_trials: int = 10):

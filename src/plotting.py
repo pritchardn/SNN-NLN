@@ -3,12 +3,11 @@ import os
 
 import numpy as np
 import torch.nn as nn
-import wandb
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 from torch.utils.data import TensorDataset
 
-from config import WANDB_ACTIVE, DEVICE
+from config import DEVICE
 
 
 def plot_intermediate_images(
@@ -41,7 +40,5 @@ def plot_intermediate_images(
         os.makedirs(output_path, exist_ok=True)
         plot_filename = f"{output_path}{os.sep}{title}-{epoch}.png"
         plt.savefig(plot_filename)
-        if WANDB_ACTIVE:
-            wandb.log({"example-reconstruction": wandb.Image(plot_filename)})
         plt.close("all")
         break
