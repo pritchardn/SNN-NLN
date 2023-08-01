@@ -15,17 +15,7 @@ from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
 from plotting import plot_intermediate_images, plot_loss_history
-from utils import generate_model_name
-
-
-def save_config(config: dict, output_dir: str):
-    """
-    Saves the config to a json file.
-    """
-    with open(
-        os.path.join(output_dir, "config.json"), "w", encoding="utf-8"
-    ) as config_file:
-        json.dump(config, config_file, indent=4)
+from utils import generate_model_name, save_config
 
 
 def train_step(

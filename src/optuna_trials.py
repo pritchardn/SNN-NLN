@@ -13,9 +13,9 @@ from config import DEVICE
 from data import process_into_dataset, load_data
 from evaluation import evaluate_model
 from plotting import plot_loss_history
-from main import train_model, save_config
+from main import train_model
 from models import AutoEncoder, Discriminator
-from utils import generate_model_name
+from utils import generate_model_name, save_config
 
 
 def run_trial(trial: optuna.Trial):

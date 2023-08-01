@@ -2,6 +2,7 @@
 Contains simple functions used throughout the project.
 Copyright (c) 2023 Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
+import json
 import os
 
 from coolname import generate_slug
@@ -45,3 +46,13 @@ def generate_output_dir(config_vals: dict) -> str:
         config_vals["model_name"],
     )
     return output_dir
+
+
+def save_config(config: dict, output_dir: str):
+    """
+    Saves the config to a json file.
+    """
+    with open(
+        os.path.join(output_dir, "config.json"), "w", encoding="utf-8"
+    ) as config_file:
+        json.dump(config, config_file, indent=4)
