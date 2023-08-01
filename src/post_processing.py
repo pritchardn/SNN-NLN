@@ -240,20 +240,33 @@ def collate_results_to_file(models: list, output_filename: str = "results"):
     )
 
 
-if __name__ == "__main__":
+def post_process(
+    dae_threshold_name, dae_noise_name, sdae_threshold_name, sdae_noise_name
+):
     # Make threshold plot
     collate_results_to_file(
-        ["DAE-THRESHOLD", "SDAE-THRESHOLD"], output_filename="results_threshold"
+        [dae_threshold_name, sdae_threshold_name], output_filename="results_threshold"
     )
     results = pd.read_csv("outputs/results_threshold.csv")
     make_threshold_plot(results)
     # Make ood plot
     collate_results_to_file(
-        ["DAE-NOISE", "SDAE-NOISE"], output_filename="results_noise"
+        [dae_noise_name, sdae_noise_name], output_filename="results_noise"
     )
     results = pd.read_csv("outputs/results_noise.csv")
     make_ood_plot(results)
     # Make inference time plot
-    collate_results_to_file(["SDAE"], output_filename="results_inferencetime")
+    collate_results_to_file(
+        [sdae_threshold_name, sdae_noise_name], output_filename="results_inferencetime"
+    )
     results = pd.read_csv("outputs/results_inferencetime.csv")
     make_inferencetime_plot(results)
+
+
+if __name__ == "__main__":
+    post_process(
+        "DAE-THRESHOLD-08-01",
+        "DAE-NOISE-08-01",
+        "SDAE-THRESHOLD-08-01",
+        "SDAE-NOISE-08-01",
+    )

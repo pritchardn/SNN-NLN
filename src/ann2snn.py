@@ -504,16 +504,13 @@ def main_standard(input_dir="./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
         main(input_dir, 39, 3, skip_exists=True, plot=False)
 
 
+def run_and_rename(inpur_dir: str, output_dir_name: str):
+    for trial_dir in os.listdir(inpur_dir):
+        print(os.path.join(inpur_dir, trial_dir))
+        main_standard(os.path.join(inpur_dir, trial_dir))
+    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", output_dir_name))
+
+
 if __name__ == "__main__":
-    INPUT_DIR = "./outputs/DAE-NOISE/MISO"
-    for trial_dir in os.listdir(INPUT_DIR):
-        print(os.path.join(INPUT_DIR, trial_dir))
-        main_standard(os.path.join(INPUT_DIR, trial_dir))
-    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-NOISE"))
-    INPUT_DIR = "./outputs/DAE-THRESHOLD/MISO"
-    for trial_dir in os.listdir(INPUT_DIR):
-        print(os.path.join(INPUT_DIR, trial_dir))
-        main_standard(os.path.join(INPUT_DIR, trial_dir))
-    os.rename(
-        os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-THRESHOLD")
-    )
+    run_and_rename("./outputs/DAE-NOISE/MISO", "SDAE-NOISE")
+    run_and_rename("./outputs/DAE-THRESHOLD/MISO", "SDAE-THRESHOLD")
