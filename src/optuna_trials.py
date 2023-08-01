@@ -1,3 +1,7 @@
+"""
+Contains code for optuna hyperparameter trial runs.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import json
 import os
 
@@ -14,6 +18,11 @@ from utils import generate_model_name
 
 
 def run_trial(trial: optuna.Trial):
+    """
+    Trial for optuna hyperparameter optimization.
+    Is effectively a condensed version of main.py.
+    :return: MSE: float
+    """
     latent_dimension = 32
     config_vals = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
@@ -43,7 +52,7 @@ def run_trial(trial: optuna.Trial):
         f'./outputs/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
-    train_x, train_y, test_x, test_y, rfi_models = load_data(
+    train_x, train_y, test_x, test_y, _ = load_data(
         excluded_rfi=config_vals["excluded_rfi"]
     )
     train_dataset, _ = process_into_dataset(
@@ -140,6 +149,9 @@ def run_trial(trial: optuna.Trial):
 
 
 def main_optuna():
+    """
+    Main function for optuna hyperparameter optimization.
+    """
     study = optuna.create_study(direction="minimize")
     study.optimize(run_trial, n_trials=64)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
@@ -157,19 +169,19 @@ def main_optuna():
 
     print("  Params: ")
     for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
-    with open(f"outputs{os.sep}best_trial.json", "w") as f:
-        json.dump(trial.params, f, indent=4)
-    with open(f"outputs{os.sep}completed_trials.json", "w") as f:
+        print(f"    {key}: {value}")
+    with open(f"outputs{os.sep}best_trial.json", "w", encoding='utf-08') as ofile:
+        json.dump(trial.params, ofile, indent=4)
+    with open(f"outputs{os.sep}completed_trials.json", "w", encoding='utf-08') as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
-        json.dump(completed_trials_out, f, indent=4)
-    with open(f"outputs{os.sep}pruned_trials.json", "w") as f:
+        json.dump(completed_trials_out, ofile, indent=4)
+    with open(f"outputs{os.sep}pruned_trials.json", "w", encoding='utf-08') as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
             pruned_trials_out.append(trial_params.params)
-        json.dump(pruned_trials_out, f, indent=4)
+        json.dump(pruned_trials_out, ofile, indent=4)
 
 
 if __name__ == "__main__":
