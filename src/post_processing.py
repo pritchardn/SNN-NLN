@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-MODELS = ["DAE", "DAE-NOISE", "DAE-THRESHOLD"]
-
 
 def write_csv_output_from_dict(
     outputdir: str, filename: str, data: list, headers: list
@@ -20,9 +18,9 @@ def write_csv_output_from_dict(
             csv_writer.writerow(row)
 
 
-def collate_results(outputdir: str) -> list:
+def collate_results(outputdir: str, models: list) -> list:
     results = []
-    for model in MODELS:
+    for model in models:
         model_outputdir = os.path.join(outputdir, model, "MISO")
         if not os.path.exists(model_outputdir):
             continue
@@ -61,7 +59,13 @@ def make_threshold_plot(results: pd.DataFrame):
         model_results = (
             sub_results[sub_results["model_type"] == model]
             .groupby("threshold")
-            .agg({"auroc": ['mean', 'std'], "auprc": ['mean', 'std'], "f1": ['mean', 'std']})
+            .agg(
+                {
+                    "auroc": ["mean", "std"],
+                    "auprc": ["mean", "std"],
+                    "f1": ["mean", "std"],
+                }
+            )
         )
         xvals = np.arange(0, len(model_results.index), 1)
         axs[0].bar(
@@ -112,16 +116,36 @@ def make_ood_plot(results: pd.DataFrame):
         model_results = (
             sub_results[sub_results["model_type"] == model]
             .groupby("excluded_rfi")
-            .agg({"auroc": ['mean', 'std'], "auprc": ['mean', 'std'], "f1": ['mean', 'std']})
+            .agg(
+                {
+                    "auroc": ["mean", "std"],
+                    "auprc": ["mean", "std"],
+                    "f1": ["mean", "std"],
+                }
+            )
             .sort_values("excluded_rfi")
         )
         axs[0].bar(
-            index + width / 2 * i, model_results["auroc"]["mean"], width=width, label=model, yerr=model_results["auroc"]["std"]
+            index + width / 2 * i,
+            model_results["auroc"]["mean"],
+            width=width,
+            label=model,
+            yerr=model_results["auroc"]["std"],
         )
         axs[1].bar(
-            index + width / 2 * i, model_results["auprc"]["mean"], width=width, label=model, yerr=model_results["auprc"]["std"]
+            index + width / 2 * i,
+            model_results["auprc"]["mean"],
+            width=width,
+            label=model,
+            yerr=model_results["auprc"]["std"],
         )
-        axs[2].bar(index + width / 2 * i, model_results["f1"]["mean"], width=width, label=model, yerr=model_results["f1"]["std"])
+        axs[2].bar(
+            index + width / 2 * i,
+            model_results["f1"]["mean"],
+            width=width,
+            label=model,
+            yerr=model_results["f1"]["std"],
+        )
         i = -i
 
     axs[0].legend()
@@ -182,14 +206,27 @@ def make_inferencetime_plot(results: pd.DataFrame):
     plt.close("all")
 
 
-def collate_reuslts():
-    result_set = collate_results("outputs")
-    write_csv_output_from_dict("outputs", "results", result_set, result_set[0].keys())
+def collate_results_to_file(models: list, output_filename: str = "results"):
+    result_set = collate_results("outputs", models)
+    write_csv_output_from_dict(
+        "outputs", output_filename, result_set, result_set[0].keys()
+    )
 
 
 if __name__ == "__main__":
-    collate_reuslts()
-    results = pd.read_csv("outputs/results.csv")
+    # Make threshold plot
+    collate_results_to_file(
+        ["DAE-THRESHOLD", "SDAE-THRESHOLD"], output_filename="results_threshold"
+    )
+    results = pd.read_csv("outputs/results_threshold.csv")
     make_threshold_plot(results)
+    # Make ood plot
+    collate_results_to_file(
+        ["DAE-NOISE", "SDAE-NOISE"], output_filename="results_noise"
+    )
+    results = pd.read_csv("outputs/results_noise.csv")
     make_ood_plot(results)
+    # Make inference time plot
+    collate_results_to_file(["SDAE"], output_filename="results_inferencetime")
+    results = pd.read_csv("outputs/results_inferencetime.csv")
     make_inferencetime_plot(results)
