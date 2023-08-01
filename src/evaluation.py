@@ -16,7 +16,7 @@ from torch import nn
 
 from config import DEVICE
 from data import reconstruct_patches, reconstruct_latent_patches
-from models import Autoencoder
+from models import AutoEncoder
 
 
 def infer(
@@ -248,7 +248,7 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
 
 
 def calculate_metrics(
-    model: Autoencoder,
+    model: AutoEncoder,
     test_masks_original: np.ndarray,
     test_dataset: torch.utils.data.DataLoader,
     train_dataset: torch.utils.data.DataLoader,
@@ -347,7 +347,7 @@ def calculate_metrics(
 
 
 def mid_run_calculate_metrics(
-    model: Autoencoder,
+    model: AutoEncoder,
     test_masks_original: np.ndarray,
     test_dataset: torch.utils.data.DataLoader,
     train_dataset: torch.utils.data.DataLoader,

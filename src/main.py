@@ -8,7 +8,7 @@ from config import DEVICE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
-from models import CustomAutoEncoder, CustomDiscriminator
+from models import AutoEncoder, Discriminator
 from plotting import plot_intermediate_images
 from utils import generate_model_name
 from torchsummary import summary
@@ -174,7 +174,7 @@ def main(config_vals: dict):
         get_orig=True,
     )
     # Create model
-    auto_encoder = CustomAutoEncoder(
+    auto_encoder = AutoEncoder(
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     auto_encoder.eval()
@@ -184,7 +184,7 @@ def main(config_vals: dict):
         break
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
-    discriminator = CustomDiscriminator(
+    discriminator = Discriminator(
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     # Create optimizer
@@ -384,7 +384,7 @@ def rerun_evaluation(input_dir):
 
     # Load model
     model_path = os.path.join(input_dir, "autoencoder.pt")
-    model = CustomAutoEncoder(
+    model = AutoEncoder(
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     )
     model.load_state_dict(torch.load(model_path))

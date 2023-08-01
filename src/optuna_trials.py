@@ -9,7 +9,7 @@ from config import DEVICE
 from data import process_into_dataset, load_data
 from evaluation import plot_loss_history, evaluate_model
 from main import train_model, save_config
-from models import CustomAutoEncoder, CustomDiscriminator
+from models import AutoEncoder, Discriminator
 from utils import generate_model_name
 
 
@@ -69,12 +69,12 @@ def run_trial(trial: optuna.Trial):
         get_orig=True,
     )
     # Create model
-    auto_encoder = CustomAutoEncoder(
+    auto_encoder = AutoEncoder(
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
     ).to(DEVICE)
-    discriminator = CustomDiscriminator(
+    discriminator = Discriminator(
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
