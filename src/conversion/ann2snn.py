@@ -140,7 +140,7 @@ def load_test_dataset(config_vals: dict):
 
 
 def load_ann_model(
-        input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
+    input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
 ):
     model_path = os.path.join(input_dir, "autoencoder.pt")
     model = CustomAutoEncoder(
@@ -168,13 +168,13 @@ def snln(x_hat, test_dataset, average_n):
 
 
 def evaluate_snn(
-        model,
-        test_dataset,
-        test_masks_original,
-        patch_size,
-        original_size,
-        runtime,
-        average_n,
+    model,
+    test_dataset,
+    test_masks_original,
+    patch_size,
+    original_size,
+    runtime,
+    average_n,
 ):
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
@@ -199,13 +199,13 @@ def evaluate_snn(
 
 
 def reconstruct_snn_inference(
-        inference: np.array, original_size: int, kernel_size: int
+    inference: np.array, original_size: int, kernel_size: int
 ):
     t = np.vstack(inference.transpose(0, 2, 4, 5, 1, 3))
     n_patches = original_size // kernel_size
     reconstruction = np.empty(
         [
-            t.shape[0] // n_patches ** 2,
+            t.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             t.shape[-2],
@@ -233,7 +233,7 @@ def reconstruct_snn_inference(
 
 
 def plot_snn_results(
-        original_images, test_masks_recon, snln_error_recon, inference, output_dir
+    original_images, test_masks_recon, snln_error_recon, inference, output_dir
 ):
     plot_directory = os.path.join(output_dir, "results")
     os.makedirs(plot_directory, exist_ok=True)
@@ -350,7 +350,9 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
 
 
-def run_trial_snn(trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model):
+def run_trial_snn(
+    trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
+):
     config_vals["time_length"] = trial.suggest_int("time_length", 16, 64)
     config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
     config_vals["model_type"] = "SDAE"
@@ -377,7 +379,7 @@ def run_trial_snn(trial: optuna.Trial, config_vals: dict, test_dataset, test_mas
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
-    return sln_metrics['mse']
+    return sln_metrics["mse"]
 
 
 def main_optuna_snn(input_dir: str):
@@ -388,8 +390,11 @@ def main_optuna_snn(input_dir: str):
     # Load model
     model = load_ann_model(input_dir, config_vals, test_dataset)
     study.optimize(
-        lambda trial: run_trial_snn(trial, config_vals, test_dataset, test_masks_original, model),
-        n_trials=60)
+        lambda trial: run_trial_snn(
+            trial, config_vals, test_dataset, test_masks_original, model
+        ),
+        n_trials=60,
+    )
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
@@ -449,4 +454,6 @@ if __name__ == "__main__":
     for trial_dir in os.listdir(input_dir):
         print(os.path.join(input_dir, trial_dir))
         main_standard(os.path.join(input_dir, trial_dir))
-    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-THRESHOLD"))
+    os.rename(
+        os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-THRESHOLD")
+    )
