@@ -45,7 +45,7 @@ def run_trial(trial: optuna.Trial):
         "excluded_rfi": None,
         "time_length": None,
         "average_n": None,
-        "trial": trial._trial_id,
+        "trial": trial._trial_id + 1,
     }
     config_vals["model_name"] = generate_model_name(config_vals)
     print(json.dumps(config_vals, indent=4))
