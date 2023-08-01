@@ -15,7 +15,7 @@ from evaluation import evaluate_model
 from plotting import plot_loss_history
 from main import train_model
 from models import AutoEncoder, Discriminator
-from utils import generate_model_name, save_config
+from utils import generate_model_name, save_json
 
 
 def run_trial(trial: optuna.Trial):
@@ -143,7 +143,7 @@ def run_trial(trial: optuna.Trial):
         config_vals.get("dataset"),
     )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
-    save_config(config_vals, output_dir)
+    save_json(config_vals, output_dir, "config")
     mse = metrics["mse"]
     return mse
 
@@ -170,14 +170,14 @@ def main_optuna():
     print("  Params: ")
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
-    with open(f"outputs{os.sep}best_trial.json", "w", encoding='utf-08') as ofile:
+    with open(f"outputs{os.sep}best_trial.json", "w", encoding="utf-08") as ofile:
         json.dump(trial.params, ofile, indent=4)
-    with open(f"outputs{os.sep}completed_trials.json", "w", encoding='utf-08') as ofile:
+    with open(f"outputs{os.sep}completed_trials.json", "w", encoding="utf-08") as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
-    with open(f"outputs{os.sep}pruned_trials.json", "w", encoding='utf-08') as ofile:
+    with open(f"outputs{os.sep}pruned_trials.json", "w", encoding="utf-08") as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
             pruned_trials_out.append(trial_params.params)

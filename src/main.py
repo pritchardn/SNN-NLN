@@ -15,7 +15,7 @@ from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
 from plotting import plot_intermediate_images, plot_loss_history
-from utils import generate_model_name, save_config
+from utils import generate_model_name, save_json
 
 
 def train_step(
@@ -258,7 +258,7 @@ def main(config_vals: dict):
         config_vals.get("dataset"),
     )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
-    save_config(config_vals, output_dir)
+    save_json(config_vals, output_dir, "config")
 
 
 def main_sweep_threshold(num_trials: int = 10):

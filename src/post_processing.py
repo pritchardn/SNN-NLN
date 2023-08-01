@@ -20,7 +20,7 @@ def write_csv_output_from_dict(
     :filename: The name of the file without file extension.
     """
     os.makedirs(outputdir, exist_ok=True)
-    with open(f"{outputdir}{os.sep}{filename}.csv", "w", encoding='utf-8') as ofile:
+    with open(f"{outputdir}{os.sep}{filename}.csv", "w", encoding="utf-8") as ofile:
         csv_writer = csv.DictWriter(ofile, fieldnames=headers)
         csv_writer.writeheader()
         for row in data:
@@ -232,7 +232,7 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
 def collate_results_to_file(models: list, output_filename: str = "results"):
     """
     Collates results and writes to csv file.
-    :param output_filename: Output filename without file extension.
+    :param: output_filename: Output filename without file extension.
     """
     result_set = collate_results("outputs", models)
     write_csv_output_from_dict(

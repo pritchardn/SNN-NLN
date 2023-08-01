@@ -1,14 +1,18 @@
+"""
+Contains code to convert DAE to SNN and evaluate the SNN model.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import glob
 import json
 import math
 import os
 
-import matplotlib.animation as animation
+from matplotlib import animation
+from matplotlib import pyplot as plt
 import matplotlib.image
 import numpy as np
 import optuna
 import torch
-from matplotlib import pyplot as plt
 from optuna.trial import TrialState
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
@@ -20,24 +24,32 @@ from data import (
     reconstruct_patches,
 )
 from evaluation import _calculate_metrics
-from main import save_config
-from models import CustomAutoEncoder
-from utils import generate_model_name, generate_output_dir
+from models import AutoEncoder
+from utils import (
+    generate_model_name,
+    generate_output_dir,
+    load_config,
+    scale_image,
+    save_json,
+)
 
 
 def animated_plotting(out_images):
+    """
+    Plots inference as animation
+    """
     for i in range(len(out_images[0])):
-        fig, ax = plt.subplots()
-        ax.axis("off")
-        ims = []
-        for j in range(len(out_images)):
-            temp_im = np.moveaxis(out_images[j][i], 0, -1) * 127.5 + 127.5
-            im = ax.imshow(temp_im, animated=True)
+        fig, axes = plt.subplots()
+        axes.axis("off")
+        images = []
+        for j, image in enumerate(out_images):
+            temp_im = np.moveaxis(image[i], 0, -1) * 127.5 + 127.5
+            image = axes.imshow(temp_im, animated=True)
             if j == 0:
-                ax.imshow(temp_im)  # show an initial one first
-            ims.append([im])
+                axes.imshow(temp_im)  # show an initial one first
+            images.append([image])
         ani = animation.ArtistAnimation(
-            fig, ims, interval=50, blit=True, repeat_delay=1000
+            fig, images, interval=50, blit=True, repeat_delay=1000
         )
         ani.save(f"output_{i}.gif", writer="pillow", fps=10)
         plt.close("all")
@@ -45,14 +57,17 @@ def animated_plotting(out_images):
 
 
 def plot_output_states(out_images):
+    """
+    Plots inference as separate images
+    """
     for i in range(len(out_images[0])):
         plt.figure(figsize=(10, 10))
         sub_range = int(math.ceil(np.sqrt(len(out_images))))
-        f, axarr = plt.subplots(sub_range, sub_range)
+        _, axarr = plt.subplots(sub_range, sub_range)
         axarr = axarr.flatten()
-        for j in range(len(out_images)):
+        for j, out_image in enumerate(out_images):
             axarr[j].axis("off")
-            axarr[j].imshow(np.moveaxis(out_images[j][i], 0, -1) * 127.5 + 127.5)
+            axarr[j].imshow(np.moveaxis(out_image[i], 0, -1) * 127.5 + 127.5)
         plt.axis("off")
         plt.savefig(f"output_{i}.png")
         plt.close("all")
@@ -60,9 +75,12 @@ def plot_output_states(out_images):
 
 
 def plot_input_images(in_images):
-    for i in range(len(in_images)):
+    """
+    Plots input images
+    """
+    for i, image in enumerate(in_images):
         plt.figure(figsize=(10, 10))
-        plt.imshow(np.moveaxis(in_images[i], 0, -1) * 127.5 + 127.5)
+        plt.imshow(np.moveaxis(image, 0, -1) * 127.5 + 127.5)
         plt.axis("off")
         plt.savefig(f"input_{i}.png")
         plt.close("all")
@@ -70,28 +88,39 @@ def plot_input_images(in_images):
 
 
 def plot_outputs(out_images):
+    """
+    Plots outputs separately and as an animated gif.
+    """
     for output_states in out_images:
         plot_output_states(output_states)
         animated_plotting(output_states)
 
 
 def infer_snn(model, dataloader, runtime=50, batch_limit=1):
+    """
+    Runs inference on an SNN model.
+    Adds additional runtime and batch_limit variables
+    :param model: The SNN model
+    :param dataloader: Torch dataloader to run inference on
+    :param runtime: The runtime to simulate the sNN for.
+    :param batch_limit: The number of batches to run inference on. If -1, will run on all images.
+    """
     model.eval().to("cuda")
     full_output = []
     i = 0
     with torch.no_grad():
-        for batch, (img, label) in enumerate(tqdm(dataloader)):
+        for img, _ in tqdm(dataloader):
             img = img.to("cuda")
             out_images = []
             if runtime is None:
                 out = model(img)
                 print(out.shape)
             else:
-                for m in model.modules():
-                    if hasattr(m, "reset"):
-                        m.reset()
-                for t in range(runtime):
-                    if t == 0:
+                for module in model.modules():
+                    if hasattr(module, "reset"):
+                        module.reset()
+                for time_step in range(runtime):
+                    if time_step == 0:
                         out = model(img)
                     else:
                         out += model(img)
@@ -105,6 +134,9 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1):
 
 
 def convert_to_snn(model, test_data_loader):
+    """
+    Converts an ANN model to an SNN model using SpikingJelly
+    """
     model_converter = ann2snn.Converter(mode="max", dataloader=test_data_loader)
     snn_model = model_converter(model)
     snn_model.graph.print_tabular()
@@ -112,24 +144,23 @@ def convert_to_snn(model, test_data_loader):
 
 
 def test_snn_model(snn_model, test_data_loader):
+    """
+    Tests an SNN model, simply runs through and plots outputs
+    """
     full_output = infer_snn(snn_model, test_data_loader, runtime=64)
     plot_outputs(full_output)
 
 
-def load_config(input_dir: str):
-    config_file_path = os.path.join(input_dir, "config.json")
-    with open(config_file_path, "r") as f:
-        config = json.load(f)
-    return config
-
-
 def load_test_dataset(config_vals: dict):
-    _, _, test_x, test_y, rfi_models = load_data()
+    """
+    Loads the test dataset.
+    """
+    _, _, test_x, test_y, _ = load_data()
     test_dataset, y_data_orig = process_into_dataset(
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -139,11 +170,12 @@ def load_test_dataset(config_vals: dict):
     return test_dataset, y_data_orig
 
 
-def load_ann_model(
-    input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
-):
+def load_ann_model(input_dir: str, config_vals: dict):
+    """
+    Loads an ANN model from a directory. Assumes this is a model from this project.
+    """
     model_path = os.path.join(input_dir, "autoencoder.pt")
-    model = CustomAutoEncoder(
+    model = AutoEncoder(
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
@@ -153,12 +185,10 @@ def load_ann_model(
     return model
 
 
-def scale_image(image):
-    return (image - np.min(image)) / (np.max(image) - np.min(image))
-
-
 def snln(x_hat, test_dataset, average_n):
-    # x_hat: [B, T, N, C, W, H]
+    """
+    Spiking NLN by averaging over last n timesteps.
+    """
     x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
     average_x_hat = np.vstack(np.mean(x_hat_trimmed, axis=1))
     average_x_hat = scale_image(average_x_hat)
@@ -176,6 +206,9 @@ def evaluate_snn(
     runtime,
     average_n,
 ):
+    """
+    Evaluates an SNN model.
+    """
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
     )
@@ -201,33 +234,41 @@ def evaluate_snn(
 def reconstruct_snn_inference(
     inference: np.array, original_size: int, kernel_size: int
 ):
-    t = np.vstack(inference.transpose(0, 2, 4, 5, 1, 3))
+    """
+    Reconstructs the inference from the SNN model into original image size.
+    """
+    transpose = np.vstack(inference.transpose(0, 2, 4, 5, 1, 3))
     n_patches = original_size // kernel_size
     reconstruction = np.empty(
         [
-            t.shape[0] // n_patches**2,
+            transpose.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
-            t.shape[-2],
-            t.shape[-1],
+            transpose.shape[-2],
+            transpose.shape[-1],
         ]
     )
 
-    start, counter, indx, b = 0, 0, 0, []
+    start, counter, indx, batch = 0, 0, 0, []
 
-    for i in range(n_patches, t.shape[0] + 1, n_patches):
-        b.append(
+    for i in range(n_patches, transpose.shape[0] + 1, n_patches):
+        batch.append(
             np.reshape(
-                np.stack(t[start:i, ...], axis=0),
-                (n_patches * kernel_size, kernel_size, t.shape[-2], t.shape[-1]),
+                np.stack(transpose[start:i, ...], axis=0),
+                (
+                    n_patches * kernel_size,
+                    kernel_size,
+                    transpose.shape[-2],
+                    transpose.shape[-1],
+                ),
             )
         )
         start = i
         counter += 1
         if counter == n_patches:
-            reconstruction[indx, ...] = np.hstack(b)
+            reconstruction[indx, ...] = np.hstack(batch)
             indx += 1
-            counter, b = 0, []
+            counter, batch = 0, []
     reconstruction = reconstruction.transpose(0, 3, 4, 1, 2)
     return reconstruction
 
@@ -235,6 +276,9 @@ def reconstruct_snn_inference(
 def plot_snn_results(
     original_images, test_masks_recon, snln_error_recon, inference, output_dir
 ):
+    """
+    Plots the results of an SNN model.
+    """
     plot_directory = os.path.join(output_dir, "results")
     os.makedirs(plot_directory, exist_ok=True)
     plot_images = np.moveaxis(original_images[:10, ...], 1, -1)
@@ -264,7 +308,7 @@ def plot_snn_results(
             axs[i, 1].axis("off")
             axs[i, 2].axis("off")
             axs[i, 3].axis("off")
-        plt.savefig(os.path.join(plot_directory, "results_{}.png".format(j)), dpi=300)
+        plt.savefig(os.path.join(plot_directory, f"results_{j}.png"), dpi=300)
     plt.close("all")
     fig = plt.figure()
     plt.axis("off")
@@ -275,7 +319,7 @@ def plot_snn_results(
             [
                 plt.imshow(
                     matplotlib.image.imread(
-                        os.path.join(plot_directory, "results_{}.png".format(j))
+                        os.path.join(plot_directory, f"results_{j}.png")
                     ),
                     animated=True,
                     extent=[0, 1, 0, 1],
@@ -290,16 +334,21 @@ def plot_snn_results(
     )
     plt.close("all")
     for j in range(plot_inference.shape[1] - 1):
-        os.remove(os.path.join(plot_directory, "results_{}.png".format(j)))
+        os.remove(os.path.join(plot_directory, f"results_{j}.png"))
 
 
 def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
-    save_config(config_vals, output_dir)
-    with open(os.path.join(output_dir, "metrics.json"), "w") as f:
-        json.dump(snn_metrics, f, indent=4)
+    """
+    Saves metrics and config to files.
+    """
+    save_json(config_vals, output_dir, "config")
+    save_json(snn_metrics, output_dir, "metrics")
 
 
 def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
+    """
+    The main conversion, inference and evaluation function.
+    """
     config_vals = load_config(input_dir)
     config_vals["time_length"] = time_length
     config_vals["average_n"] = average_n
@@ -311,7 +360,7 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
-    model = load_ann_model(input_dir, config_vals, test_dataset)
+    model = load_ann_model(input_dir, config_vals)
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset)
     # Evaluate
@@ -353,6 +402,9 @@ def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
 def run_trial_snn(
     trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
 ):
+    """
+    Version of run_trial for SNN models for optuna optimization.
+    """
     config_vals["time_length"] = trial.suggest_int("time_length", 16, 64)
     config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
     config_vals["model_type"] = "SDAE"
@@ -366,7 +418,7 @@ def run_trial_snn(
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset)
     # Evaluate
-    sln_metrics, snln_error_recon, inference = evaluate_snn(
+    sln_metrics, _, _ = evaluate_snn(
         snn_model,
         test_dataset,
         test_masks_original,
@@ -383,12 +435,15 @@ def run_trial_snn(
 
 
 def main_optuna_snn(input_dir: str):
+    """
+    Main loop for optuna hyperparameter optimization of SNN models.
+    """
     study = optuna.create_study(direction="minimize")
     config_vals = load_config(input_dir)
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
     # Load model
-    model = load_ann_model(input_dir, config_vals, test_dataset)
+    model = load_ann_model(input_dir, config_vals)
     study.optimize(
         lambda trial: run_trial_snn(
             trial, config_vals, test_dataset, test_masks_original, model
@@ -410,50 +465,55 @@ def main_optuna_snn(input_dir: str):
 
     print("  Params: ")
     for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
-    with open(f"outputs{os.sep}best_trial_snn.json", "w") as f:
-        json.dump(trial.params, f, indent=4)
-    with open(f"outputs{os.sep}completed_trials_snn.json", "w") as f:
+        print(f"    {key}: {value}")
+    with open(f"outputs{os.sep}best_trial_snn.json", "w", encoding="utf-8") as ofile:
+        json.dump(trial.params, ofile, indent=4)
+    with open(
+        f"outputs{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
+    ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
-        json.dump(completed_trials_out, f, indent=4)
-    with open(f"outputs{os.sep}pruned_trials_snn.json", "w") as f:
+        json.dump(completed_trials_out, ofile, indent=4)
+    with open(f"outputs{os.sep}pruned_trials_snn.json", "w", encoding="utf-8") as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
             pruned_trials_out.append(trial_params.params)
-        json.dump(pruned_trials_out, f, indent=4)
+        json.dump(pruned_trials_out, ofile, indent=4)
 
 
 def main_standard(input_dir="./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
-    SWEEP = False
+    """
+    Standard single trial for SNN run. If sweep is set to True, a simple
+    grid-search of hyperparameters is performed
+    """
+    sweep = False
     input_dirs = glob.glob("./outputs/DAE/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
-    i = 0
-    if SWEEP:
-        for input_dir in input_dirs:
+    if sweep:
+        for curr_input_dir in input_dirs:
             for time_length in time_lengths:
-                for n in average_n:
+                for window_size in average_n:
                     plot = False
                     if time_length == 64 and average_n == 32:
                         plot = True
-                    print(f"{input_dir}\t{time_length}\t{n}")
-                    main(input_dir, time_length, n, plot=plot)
+                    print(f"{curr_input_dir}\t{time_length}\t{window_size}")
+                    main(curr_input_dir, time_length, window_size, plot=plot)
     else:
         main(input_dir, 39, 3, skip_exists=True, plot=False)
 
 
 if __name__ == "__main__":
-    input_dir = "./outputs/DAE-NOISE/MISO"
-    for trial_dir in os.listdir(input_dir):
-        print(os.path.join(input_dir, trial_dir))
-        main_standard(os.path.join(input_dir, trial_dir))
+    INPUT_DIR = "./outputs/DAE-NOISE/MISO"
+    for trial_dir in os.listdir(INPUT_DIR):
+        print(os.path.join(INPUT_DIR, trial_dir))
+        main_standard(os.path.join(INPUT_DIR, trial_dir))
     os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-NOISE"))
-    input_dir = "./outputs/DAE-THRESHOLD/MISO"
-    for trial_dir in os.listdir(input_dir):
-        print(os.path.join(input_dir, trial_dir))
-        main_standard(os.path.join(input_dir, trial_dir))
+    INPUT_DIR = "./outputs/DAE-THRESHOLD/MISO"
+    for trial_dir in os.listdir(INPUT_DIR):
+        print(os.path.join(INPUT_DIR, trial_dir))
+        main_standard(os.path.join(INPUT_DIR, trial_dir))
     os.rename(
         os.path.join("outputs", "SDAE"), os.path.join("outputs", "SDAE-THRESHOLD")
     )

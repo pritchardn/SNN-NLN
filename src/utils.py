@@ -5,6 +5,7 @@ Copyright (c) 2023 Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import json
 import os
 
+import numpy as np
 from coolname import generate_slug
 
 
@@ -48,11 +49,28 @@ def generate_output_dir(config_vals: dict) -> str:
     return output_dir
 
 
-def save_config(config: dict, output_dir: str):
+def save_json(data: dict, output_dir: str, filename: str):
     """
-    Saves the config to a json file.
+    Saves a dictionary to a json file at output_dir as filename.json.
     """
     with open(
-        os.path.join(output_dir, "config.json"), "w", encoding="utf-8"
-    ) as config_file:
-        json.dump(config, config_file, indent=4)
+        os.path.join(output_dir, f"{filename}.json"), "w", encoding="utf-8"
+    ) as ofile:
+        json.dump(data, ofile, indent=4)
+
+
+def load_config(input_dir: str):
+    """
+    Loads the config file from the input directory
+    """
+    config_file_path = os.path.join(input_dir, "config.json")
+    with open(config_file_path, "r", encoding="utf-8") as ifile:
+        config = json.load(ifile)
+    return config
+
+
+def scale_image(image):
+    """
+    Scales an image between its min and max values.
+    """
+    return (image - np.min(image)) / (np.max(image) - np.min(image))
