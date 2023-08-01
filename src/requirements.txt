@@ -1,0 +1,12 @@
+aoflagger==3.2.1
+coolname==2.2.0
+faiss==1.7.2
+matplotlib==3.7.1
+numpy==1.24.3
+optuna==3.2.0
+pandas==2.0.1
+scikit_learn==1.2.2
+spikingjelly==0.0.0.0.14
+torch==2.0.0
+torch_summary==1.4.5
+tqdm==4.65.0
