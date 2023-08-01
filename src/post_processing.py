@@ -1,3 +1,8 @@
+"""
+Contains post-processing plot generating functions for the project.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
+
 import csv
 import json
 import os
@@ -10,8 +15,12 @@ import pandas as pd
 def write_csv_output_from_dict(
     outputdir: str, filename: str, data: list, headers: list
 ):
+    """
+    Writes a csv file from a list of dictionaries.
+    :filename: The name of the file without file extension.
+    """
     os.makedirs(outputdir, exist_ok=True)
-    with open(f"{outputdir}{os.sep}{filename}.csv", "w") as ofile:
+    with open(f"{outputdir}{os.sep}{filename}.csv", "w", encoding='utf-8') as ofile:
         csv_writer = csv.DictWriter(ofile, fieldnames=headers)
         csv_writer.writeheader()
         for row in data:
@@ -19,7 +28,12 @@ def write_csv_output_from_dict(
 
 
 def collate_results(outputdir: str, models: list) -> list:
-    results = []
+    """
+    Collates results from the output directory.
+    Only collates results for models in the models list.
+    :returns: A list of dictionaries containing the results.
+    """
+    result_list = []
     for model in models:
         model_outputdir = os.path.join(outputdir, model, "MISO")
         if not os.path.exists(model_outputdir):
@@ -29,29 +43,32 @@ def collate_results(outputdir: str, models: list) -> list:
             config_filename = os.path.join(model_outputdir, filename, "config.json")
             if not os.path.exists(config_filename):
                 continue
-            with open(config_filename, "r") as f:
-                config_data = json.load(f)
+            with open(config_filename, "r", encoding="utf-8") as config_file:
+                config_data = json.load(config_file)
                 trial_vals.update(config_data)
             metric_filename = os.path.join(model_outputdir, filename, "metrics.json")
-            with open(metric_filename, "r") as f:
-                result_data = json.load(f)
+            with open(metric_filename, "r", encoding="utf-8") as config_file:
+                result_data = json.load(config_file)
                 if "nln" in result_data:
                     trial_vals.update(result_data["nln"])
                 else:
                     trial_vals.update(result_data)
             print(trial_vals)
-            results.append(trial_vals)
-    return results
+            result_list.append(trial_vals)
+    return result_list
 
 
-def make_threshold_plot(results: pd.DataFrame):
-    sub_results = results[pd.isna(results["excluded_rfi"])]
-    models = results["model_type"].unique()
+def make_threshold_plot(dframe: pd.DataFrame):
+    """
+    Makes a plot of the results for different thresholds.
+    """
+    sub_results = dframe[pd.isna(dframe["excluded_rfi"])]
+    models = dframe["model_type"].unique()
     width = 0.25  # 1/len(models)
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    _, axes = plt.subplots(1, 3, figsize=(15, 5))
     i = -1
     # TODO: Multiple trials and therefore std-dev error bars
-    # TODO: Filter results for best time_length and average_n
+    # TODO: Filter dframe for best time_length and average_n
     # TODO: Better legend placement
     num_ticks = len(sub_results["threshold"].unique())
     xticks = np.arange(0, num_ticks, 1)
@@ -68,21 +85,21 @@ def make_threshold_plot(results: pd.DataFrame):
             )
         )
         xvals = np.arange(0, len(model_results.index), 1)
-        axs[0].bar(
+        axes[0].bar(
             xvals + width / 2 * i,
             model_results["auroc"]["mean"],
             width=width,
             label=model,
             yerr=model_results["auroc"]["std"],
         )
-        axs[1].bar(
+        axes[1].bar(
             xvals + width / 2 * i,
             model_results["auprc"]["mean"],
             width=width,
             label=model,
             yerr=model_results["auroc"]["std"],
         )
-        axs[2].bar(
+        axes[2].bar(
             xvals + width / 2 * i,
             model_results["f1"]["mean"],
             width=width,
@@ -90,26 +107,29 @@ def make_threshold_plot(results: pd.DataFrame):
             yerr=model_results["auroc"]["std"],
         )
         i = -i
-    axs[1].legend()
-    axs[0].set_ylabel("AUROC")
-    axs[1].set_ylabel("AUPRC")
-    axs[2].set_ylabel("F1")
+    axes[1].legend()
+    axes[0].set_ylabel("AUROC")
+    axes[1].set_ylabel("AUPRC")
+    axes[2].set_ylabel("F1")
     xticklabels = sorted(sub_results["threshold"].unique().astype(int))
     xticklabels[0] = 0.5
-    for ax in axs:
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticklabels)
-        ax.set_xlabel("AOFlagger Threshold")
+    for axis in axes:
+        axis.set_xticks(xticks)
+        axis.set_xticklabels(xticklabels)
+        axis.set_xlabel("AOFlagger Threshold")
     plt.savefig("outputs/threshold_plot.png", dpi=300)
     plt.close("all")
 
 
-def make_ood_plot(results: pd.DataFrame):
-    sub_results = results[pd.notna(results["excluded_rfi"])]
-    models = results["model_type"].unique()
+def make_ood_plot(dframe: pd.DataFrame):
+    """
+    Makes a plot of out-of-distrubtion results.
+    """
+    sub_results = dframe[pd.notna(dframe["excluded_rfi"])]
+    models = dframe["model_type"].unique()
     width = 0.25  # 1/len(models)
 
-    fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
+    _, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
     i = -1
     index = np.arange(len(sub_results["excluded_rfi"].unique()))
     for model in models:
@@ -125,21 +145,21 @@ def make_ood_plot(results: pd.DataFrame):
             )
             .sort_values("excluded_rfi")
         )
-        axs[0].bar(
+        axes[0].bar(
             index + width / 2 * i,
             model_results["auroc"]["mean"],
             width=width,
             label=model,
             yerr=model_results["auroc"]["std"],
         )
-        axs[1].bar(
+        axes[1].bar(
             index + width / 2 * i,
             model_results["auprc"]["mean"],
             width=width,
             label=model,
             yerr=model_results["auprc"]["std"],
         )
-        axs[2].bar(
+        axes[2].bar(
             index + width / 2 * i,
             model_results["f1"]["mean"],
             width=width,
@@ -148,28 +168,31 @@ def make_ood_plot(results: pd.DataFrame):
         )
         i = -i
 
-    axs[0].legend()
-    axs[0].set_ylabel("AUROC")
-    axs[1].set_ylabel("AUPRC")
-    axs[2].set_ylabel("F1")
-    axs[2].set_xlabel("Excluded RFI")
-    axs[2].set_xticks(index)
-    axs[2].set_xticklabels(sub_results["excluded_rfi"].unique())
+    axes[0].legend()
+    axes[0].set_ylabel("AUROC")
+    axes[1].set_ylabel("AUPRC")
+    axes[2].set_ylabel("F1")
+    axes[2].set_xlabel("Excluded RFI")
+    axes[2].set_xticks(index)
+    axes[2].set_xticklabels(sub_results["excluded_rfi"].unique())
     plt.savefig("outputs/ood_plot.png", dpi=300)
     plt.close("all")
 
 
-def make_inferencetime_plot(results: pd.DataFrame):
-    filter = (
-        (results.model_type == "SDAE")
-        & (results.excluded_rfi.isna())
-        & (results.threshold == 10)
-        & (results.latent_dimension == 32)
-        & (results.num_layers == 2)
+def make_inferencetime_plot(dframe: pd.DataFrame):
+    """
+    Makes a plot of inference time results. Only for SDAE.
+    """
+    pandas_filter = (
+        (dframe.model_type == "SDAE")
+        & (dframe.excluded_rfi.isna())
+        & (dframe.threshold == 10)
+        & (dframe.latent_dimension == 32)
+        & (dframe.num_layers == 2)
     )
-    sub_results = results[filter]
+    sub_results = dframe[pandas_filter]
     print(len(sub_results))
-    fig, axs = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
+    _, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
     width = 0.5  # 1/len(sub_results["average_n"].unique())
     i = -1
     for time_length in sub_results["time_length"].unique():
@@ -177,36 +200,40 @@ def make_inferencetime_plot(results: pd.DataFrame):
         inference_results = inference_results.groupby("average_n").mean(
             "auroc", "auprc", "f1"
         )
-        axs[0].bar(
+        axes[0].bar(
             inference_results.index + width / 2 * i,
             inference_results["auroc"],
             width=width,
             label=time_length,
         )
-        axs[1].bar(
+        axes[1].bar(
             inference_results.index + width / 2 * i,
             inference_results["auprc"],
             width=width,
             label=time_length,
         )
-        axs[2].bar(
+        axes[2].bar(
             inference_results.index + width / 2 * i,
             inference_results["f1"],
             width=width,
             label=time_length,
         )
         i = -i
-    axs[0].legend()
-    axs[0].set_ylabel("AUROC")
-    axs[1].set_ylabel("AUPRC")
-    axs[2].set_ylabel("F1")
-    axs[2].set_xlabel("Slice Length")
-    axs[2].set_xticks(sub_results["average_n"].unique())
+    axes[0].legend()
+    axes[0].set_ylabel("AUROC")
+    axes[1].set_ylabel("AUPRC")
+    axes[2].set_ylabel("F1")
+    axes[2].set_xlabel("Slice Length")
+    axes[2].set_xticks(sub_results["average_n"].unique())
     plt.savefig("outputs/inferencetime_plot.png", dpi=300)
     plt.close("all")
 
 
 def collate_results_to_file(models: list, output_filename: str = "results"):
+    """
+    Collates results and writes to csv file.
+    :param output_filename: Output filename without file extension.
+    """
     result_set = collate_results("outputs", models)
     write_csv_output_from_dict(
         "outputs", output_filename, result_set, result_set[0].keys()
