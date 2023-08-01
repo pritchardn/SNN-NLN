@@ -54,7 +54,7 @@ def run_trial(trial: optuna.Trial):
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
-        filter=True,
+        filter_rfi_patches=True,
         shuffle=True,
     )
     test_dataset, test_masks_original = process_into_dataset(

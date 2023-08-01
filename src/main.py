@@ -159,7 +159,7 @@ def main(config_vals: dict):
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
-        filter=True,
+        filter_rfi_patches=True,
         shuffle=True,
     )
     test_dataset, test_masks_original = process_into_dataset(
@@ -228,7 +228,7 @@ def main(config_vals: dict):
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
-        filter=True,
+        filter_rfi_patches=True,
         shuffle=False,
     )
     # Test model
@@ -367,7 +367,7 @@ def rerun_evaluation(input_dir):
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
-        filter=True,
+        filter_rfi_patches=True,
         shuffle=False,
     )
     test_dataset, test_masks_original = process_into_dataset(
