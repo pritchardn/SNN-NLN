@@ -1,9 +1,18 @@
+"""
+Contains simple functions used throughout the project.
+Copyright (c) 2023 Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import os
 
 from coolname import generate_slug
 
 
-def generate_model_name(config_vals: dict):
+def generate_model_name(config_vals: dict) -> str:
+    """
+    Generates a unique filename for a model based on the config values.
+    :param config_vals: The values used to configure the model
+    :return: A unique filename for the model
+    """
     model_name = (
         f'{config_vals["model_type"]}_{config_vals["anomaly_type"]}_'
         f'{config_vals["dataset"]}_{config_vals["latent_dimension"]}_'
@@ -22,7 +31,13 @@ def generate_model_name(config_vals: dict):
     return model_name
 
 
-def generate_output_dir(config_vals: dict):
+def generate_output_dir(config_vals: dict) -> str:
+    """
+    Generates an output directory for a model based on the config values. Groups models together
+    by model type, anomaly type and model name.
+    :param config_vals: The config values used to configure the model
+    :return: An output directory
+    """
     output_dir = os.path.join(
         "outputs",
         config_vals["model_type"],
