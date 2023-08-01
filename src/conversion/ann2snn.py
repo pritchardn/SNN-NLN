@@ -21,7 +21,7 @@ from data import (
 )
 from evaluation import _calculate_metrics
 from main import save_config
-from models import Autoencoder
+from models import CustomAutoEncoder
 from utils import generate_model_name, generate_output_dir
 
 
@@ -143,11 +143,10 @@ def load_ann_model(
         input_dir: str, config_vals: dict, test_dataset: torch.utils.data.Dataset
 ):
     model_path = os.path.join(input_dir, "autoencoder.pt")
-    model = Autoencoder(
-        config_vals["num_layers"],
-        config_vals["latent_dimension"],
+    model = CustomAutoEncoder(
+        1,
         config_vals["num_filters"],
-        test_dataset.dataset[0][0].shape,
+        config_vals["latent_dimension"],
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -437,7 +436,7 @@ def main_standard(input_dir="./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
                     print(f"{input_dir}\t{time_length}\t{n}")
                     main(input_dir, time_length, n, plot=plot)
     else:
-        main(input_dir, 39, 3, skip_exists=False)
+        main(input_dir, 39, 3, skip_exists=True, plot=False)
 
 
 if __name__ == "__main__":
