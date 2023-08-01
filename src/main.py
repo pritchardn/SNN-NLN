@@ -11,10 +11,10 @@ import torch
 from torchsummary import summary
 from config import DEVICE, STANDARD_PARAMS
 from data import load_data, process_into_dataset
-from evaluation import evaluate_model, plot_loss_history, mid_run_calculate_metrics
+from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
-from plotting import plot_intermediate_images
+from plotting import plot_intermediate_images, plot_loss_history
 from utils import generate_model_name
 
 

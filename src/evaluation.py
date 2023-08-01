@@ -460,22 +460,3 @@ def evaluate_model(
         model_name,
     )
     return nln_metrics
-
-
-def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
-    """
-    Plots the loss history of a DAE model.
-    """
-    epochs = list(range(len(ae_history)))
-    plt.figure(figsize=(10, 10))
-    plt.plot(epochs, ae_history, label="ae loss")
-    plt.plot(epochs, disc_history, label="disc loss")
-    plt.plot(epochs, gen_history, label="gen loss")
-    plt.legend()
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.tight_layout()
-
-    output_filename = os.path.join(outputdir, "results", "loss.png")
-    plt.savefig(output_filename)
-    plt.close("all")

@@ -11,7 +11,8 @@ from optuna.trial import TrialState
 
 from config import DEVICE
 from data import process_into_dataset, load_data
-from evaluation import plot_loss_history, evaluate_model
+from evaluation import evaluate_model
+from plotting import plot_loss_history
 from main import train_model, save_config
 from models import AutoEncoder, Discriminator
 from utils import generate_model_name
