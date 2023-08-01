@@ -1,3 +1,7 @@
+"""
+Contains methods used to calculate model performance for all trials.
+Copyright (c) 2023, Nicholas Pritchard  <nicholas.pritchard@icrar.org>
+"""
 import json
 import os
 
@@ -22,10 +26,12 @@ from models import AutoEncoder
 def infer(
     model: nn.Module,
     dataset: torch.utils.data.DataLoader,
-    batch_size: int,
     edge_size: int,
     latent=False,
 ):
+    """
+    Infer the output of a model on a dataset.
+    """
     if latent:
         output = np.empty([len(dataset.dataset), edge_size], dtype=np.float32)
     else:
@@ -34,10 +40,9 @@ def infer(
             dtype=np.float32,
         )
     start = 0
-    for batch, (x, y) in enumerate(dataset):
-        x = x.to(DEVICE)
-        y = y.to(DEVICE)
-        predictions = model(x).cpu().detach().numpy()
+    for image_batch, _ in dataset:
+        image_batch = image_batch.to(DEVICE)
+        predictions = model(image_batch).cpu().detach().numpy()
         output[start : start + len(predictions), ...] = predictions
         start += len(predictions)
     return output
@@ -52,9 +57,14 @@ def save_metrics(
     anomaly_type: str,
     model_name: str,
 ):
+    """
+    Saves metrics to a json file.
+    """
     output_filepath = os.path.join("outputs", model_type, anomaly_type, model_name)
     os.makedirs(output_filepath, exist_ok=True)
-    with open(os.path.join(output_filepath, "metrics.json"), "w") as f:
+    with open(
+        os.path.join(output_filepath, "metrics.json"), "w", encoding="utf-8"
+    ) as metric_file:
         json.dump(
             {
                 "ae": ae_metrics,
@@ -62,7 +72,7 @@ def save_metrics(
                 "dist": dist_metrics,
                 "combined": combined_metrics,
             },
-            f,
+            metric_file,
             indent=4,
         )
 
@@ -81,18 +91,21 @@ def plot_final_images(
     combined_reconstructed,
     latent_reconstructed,
 ):
-    fig, axs = plt.subplots(10, 7, figsize=(10, 8))
-    axs[0, 0].set_title("Inp", fontsize=5)
-    axs[0, 1].set_title("Mask", fontsize=5)
-    axs[0, 2].set_title(f'Recon {metrics.get("ae_ao_auroc", 0)}', fontsize=5)
-    axs[0, 3].set_title(f'NLN {metrics.get("nln_ao_auroc", 0)}', fontsize=5)
-    axs[0, 4].set_title(
+    """
+    Plots final images for a model. Plots interim inferance panes too.
+    """
+    _, axes = plt.subplots(10, 7, figsize=(10, 8))
+    axes[0, 0].set_title("Inp", fontsize=5)
+    axes[0, 1].set_title("Mask", fontsize=5)
+    axes[0, 2].set_title(f'Recon {metrics.get("ae_ao_auroc", 0)}', fontsize=5)
+    axes[0, 3].set_title(f'NLN {metrics.get("nln_ao_auroc", 0)}', fontsize=5)
+    axes[0, 4].set_title(
         f'Dist {metrics.get("dists_ao_auroc", 0)} {neighbour}', fontsize=5
     )
-    axs[0, 5].set_title(
+    axes[0, 5].set_title(
         f'Combined {metrics.get("combined_ao_auroc", 0)} {neighbour}', fontsize=5
     )
-    axs[0, 6].set_title(
+    axes[0, 6].set_title(
         f'Recon {metrics.get("combined_ao_auroc", 0)} {neighbour}', fontsize=5
     )
     test_images_reconstructed = np.moveaxis(test_images_reconstructed, 1, -1)
@@ -103,49 +116,49 @@ def plot_final_images(
     combined_reconstructed = np.moveaxis(combined_reconstructed, 1, -1)
     latent_reconstructed = np.moveaxis(latent_reconstructed, 1, -1)
     for i in range(10):
-        r = np.random.randint(len(test_images_reconstructed))
-        axs[i, 0].imshow(
-            test_images_reconstructed[r, ..., 0].astype(np.float32),
+        random_index = np.random.randint(len(test_images_reconstructed))
+        axes[i, 0].imshow(
+            test_images_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 1].imshow(
-            test_masks_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 1].imshow(
+            test_masks_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 2].imshow(
-            error_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 2].imshow(
+            error_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 3].imshow(
-            nln_error_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 3].imshow(
+            nln_error_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 4].imshow(
-            distrubtions_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 4].imshow(
+            distrubtions_reconstructed[random_index, ..., 0].astype(np.float32),
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 5].imshow(
-            combined_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 5].imshow(
+            combined_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
             aspect="auto",
         )
-        axs[i, 6].imshow(
-            latent_reconstructed[r, ..., 0].astype(np.float32),
+        axes[i, 6].imshow(
+            latent_reconstructed[random_index, ..., 0].astype(np.float32),
             vmin=0,
             vmax=1,
             interpolation="nearest",
@@ -160,12 +173,16 @@ def plot_final_images(
 def get_error_dataset(
     images: torch.utils.data.DataLoader, x_hat: np.ndarray, image_size: int
 ):
+    """
+    Calculates the error between the original images and the
+    reconstructed images for an entire dataset.
+    """
     output = np.empty(
         [len(images.dataset), 1, image_size, image_size], dtype=np.float32
     )
     start = 0
-    for batch, (x, y) in enumerate(images):
-        error = x.cpu().detach().numpy() - x_hat[start : start + len(x), ...]
+    for image, _ in images:
+        error = image.cpu().detach().numpy() - x_hat[start : start + len(image), ...]
         output[0 : len(error), ...] = error
         start += len(error)
     return output
@@ -175,21 +192,22 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     if error_recon.shape[1] == 1 and test_masks_orig_recon.shape[1] == 1:
         error_recon = np.moveaxis(error_recon, 1, -1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, 1, -1)
-    fpr, tpr, thr = roc_curve(
+    false_pos_rate, true_pos_rate, _ = roc_curve(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten()
     )
     acc = balanced_accuracy_score(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten() > 0
     )
     mse = mean_squared_error(test_masks_orig_recon.flatten(), error_recon.flatten())
-    true_auroc = auc(fpr, tpr)
-    precision, recall, thresholds = precision_recall_curve(
+    true_auroc = auc(false_pos_rate, true_pos_rate)
+    precision, recall, _ = precision_recall_curve(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten()
     )
     true_auprc = auc(recall, precision)
-    f1 = 2 * recall * precision / (recall + precision)
-    true_f1 = np.max(f1)
+    f1_scores = 2 * recall * precision / (recall + precision)
+    true_f1 = np.max(f1_scores)
     if error_recon.shape[1] != 1 and test_masks_orig_recon.shape[1] != 1:
+        # In-case the side effects are used later.
         error_recon = np.moveaxis(error_recon, -1, 1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, -1, 1)
     return {
@@ -201,9 +219,13 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     }
 
 
-def nln(z, z_query, neighbours):
-    index = faiss.IndexFlatL2(z.shape[1])
-    index.add(z.astype(np.float32))
+def nln(z_train, z_query, neighbours):
+    """
+    Calculates the nearest neighbours of a query set in the latent representation of a training set.
+    :return:
+    """
+    index = faiss.IndexFlatL2(z_train.shape[1])
+    index.add(z_train.astype(np.float32))
     neighbours_dist, neighbours_idx = index.search(
         z_query.astype(np.float32), neighbours
     )
@@ -219,6 +241,9 @@ def nln_errors(
     neighbours_idx,
     neighbour_mask,
 ):
+    """
+    Calculates the error between the inferred neighbours of each test image in a whole dataset.
+    """
     test_images = test_dataset.dataset[:][0].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
     neighbours = x_hat_train[neighbours_idx]
@@ -234,6 +259,9 @@ def nln_errors(
 
 
 def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
+    """
+    Calculates the mean distance between each test image and its neighbours.
+    """
     dists = np.mean(neighbours_dist, axis=tuple(range(1, neighbours_dist.ndim)))
     if patch_size is not None:
         dists = np.array([[d] * patch_size**2 for i, d in enumerate(dists)]).reshape(
@@ -243,8 +271,7 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
             np.expand_dims(dists, axis=1), original_size, patch_size
         )
         return dists_recon
-    else:
-        return dists
+    return dists
 
 
 def calculate_metrics(
@@ -253,7 +280,6 @@ def calculate_metrics(
     test_dataset: torch.utils.data.DataLoader,
     train_dataset: torch.utils.data.DataLoader,
     neighbours: int,
-    batch_size: int,
     model_name: str,
     model_type: str,
     anomaly_type: str,
@@ -263,23 +289,26 @@ def calculate_metrics(
     dataset="HERA",
     evaluate_run=False,
 ):
+    """
+    The function for calculating metrics for a model trial.
+    """
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
     )
-    z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
-    z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
+    z_train = infer(model.encoder, train_dataset, latent_dimension, True)
+    z_query = infer(model.encoder, test_dataset, latent_dimension, True)
 
-    x_hat = infer(model, test_dataset, batch_size, patch_size, False)
-    x_hat_train = infer(model, train_dataset, batch_size, patch_size, False)
+    x_hat = infer(model, test_dataset, patch_size, False)
+    x_hat_train = infer(model, train_dataset, patch_size, False)
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
     error_recon = reconstruct_patches(error, original_size, patch_size)
 
     ae_metrics = _calculate_metrics(test_masks_original_reconstructed, error_recon)
-    neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
+    neighbours_dist, neighbours_idx, neighbour_mask = nln(z_train, z_query, neighbours)
 
-    x_hat = infer(model, test_dataset, batch_size, patch_size, False)
+    x_hat = infer(model, test_dataset, patch_size, False)
 
     nln_error = nln_errors(
         test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask
@@ -352,21 +381,23 @@ def mid_run_calculate_metrics(
     test_dataset: torch.utils.data.DataLoader,
     train_dataset: torch.utils.data.DataLoader,
     neighbours: int,
-    batch_size: int,
     latent_dimension: int,
     original_size: int,
     patch_size: int = None,
 ):
+    """
+    Calculates metrics for a model trial mid-run. Only calculates nln metrics to avoid useless work.
+    """
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
     )
-    z = infer(model.encoder, train_dataset, batch_size, latent_dimension, True)
-    z_query = infer(model.encoder, test_dataset, batch_size, latent_dimension, True)
+    z_train = infer(model.encoder, train_dataset, latent_dimension, True)
+    z_query = infer(model.encoder, test_dataset, latent_dimension, True)
 
-    x_hat = infer(model, test_dataset, batch_size, patch_size, False)
-    x_hat_train = infer(model, train_dataset, batch_size, patch_size, False)
+    x_hat = infer(model, test_dataset, patch_size, False)
+    x_hat_train = infer(model, train_dataset, patch_size, False)
 
-    neighbours_dist, neighbours_idx, neighbour_mask = nln(z, z_query, neighbours)
+    _, neighbours_idx, neighbour_mask = nln(z_train, z_query, neighbours)
     nln_error = nln_errors(
         test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask
     )
@@ -391,7 +422,6 @@ def evaluate_model(
     test_dataset,
     train_dataset,
     neighbours,
-    batch_size,
     latent_dimension,
     original_size,
     patch_size,
@@ -401,13 +431,15 @@ def evaluate_model(
     dataset,
     evaluate_run=False,
 ):
+    """
+    Evaluates a model trial.
+    """
     ae_metrics, nln_metrics, dist_metrics, combined_metrics = calculate_metrics(
         model,
         test_masks,
         test_dataset,
         train_dataset,
         neighbours,
-        batch_size,
         model_name,
         model_type,
         anomaly_type,
@@ -431,7 +463,10 @@ def evaluate_model(
 
 
 def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
-    epochs = [e for e in range(len(ae_history))]
+    """
+    Plots the loss history of a DAE model.
+    """
+    epochs = list(range(len(ae_history)))
     plt.figure(figsize=(10, 10))
     plt.plot(epochs, ae_history, label="ae loss")
     plt.plot(epochs, disc_history, label="disc loss")

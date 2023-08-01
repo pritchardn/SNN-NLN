@@ -133,7 +133,6 @@ def run_trial(trial: optuna.Trial):
         test_dataset,
         train_dataset,
         config_vals.get("neighbours"),
-        config_vals.get("batch_size"),
         config_vals.get("latent_dimension"),
         train_x[0].shape[0],
         config_vals.get("patch_size"),
