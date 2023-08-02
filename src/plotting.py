@@ -65,7 +65,7 @@ def plot_loss_history(ae_history, disc_history, gen_history, outputdir):
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.tight_layout()
-
+    os.makedirs(os.path.join(outputdir, "results"), exist_ok=True)
     output_filename = os.path.join(outputdir, "results", "loss.png")
     plt.savefig(output_filename)
     plt.close("all")
