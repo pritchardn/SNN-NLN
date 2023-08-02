@@ -8,6 +8,8 @@ import os
 import numpy as np
 from coolname import generate_slug
 
+from config import OUTPUT_DIR
+
 
 def generate_model_name(config_vals: dict) -> str:
     """
@@ -41,7 +43,7 @@ def generate_output_dir(config_vals: dict) -> str:
     :return: An output directory
     """
     output_dir = os.path.join(
-        "outputs",
+        OUTPUT_DIR,
         config_vals["model_type"],
         config_vals["anomaly_type"],
         config_vals["model_name"],

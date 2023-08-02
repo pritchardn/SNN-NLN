@@ -28,3 +28,7 @@ STANDARD_PARAMS = {
     "average_n": None,
     "trial": 1,
 }
+
+OUTPUT_DIR = "outputs"
+DATA_DIR = "data"
+INPUT_DIR = "inputs"

@@ -11,6 +11,8 @@ import torch
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
 
+from config import DATA_DIR
+
 
 def limit_entries(image_data, masks, limit: int):
     """
@@ -54,11 +56,11 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         strategy = None
         if mode == "HERA":
             strategy = aoflagger.load_strategy_file(
-                f"data{os.sep}flagging{os.sep}hera_{threshold}.lua"
+                f"{DATA_DIR}{os.sep}flagging{os.sep}hera_{threshold}.lua"
             )
         elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
-                f"data{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+                f"{DATA_DIR}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
             )
         if not strategy:
             return None

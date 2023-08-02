@@ -5,7 +5,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import os
 
 from ann2snn import run_and_rename
-from config import STANDARD_PARAMS
+from config import STANDARD_PARAMS, OUTPUT_DIR
 from main import main, main_sweep_threshold, main_sweep_noise
 from post_processing import post_process
 
@@ -22,19 +22,21 @@ def replicate(num_trials=10):
         print("Data file does not exist")
     # Threshold models
     main_sweep_threshold(num_trials)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
+    os.rename(
+        os.path.join(OUTPUT_DIR, "DAE"), os.path.join(OUTPUT_DIR, "DAE-THRESHOLD")
+    )
     # Noise models
     main_sweep_noise(num_trials)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
+    os.rename(os.path.join(OUTPUT_DIR, "DAE"), os.path.join(OUTPUT_DIR, "DAE-NOISE"))
     # Train standard models
     config_vals = STANDARD_PARAMS
     for trial in range(num_trials):
         config_vals["trial"] = trial + 1
         main(config_vals)
     # SNN Conversions
-    run_and_rename("./outputs/DAE/MISO", "SDAE")
-    run_and_rename("./outputs/DAE-NOISE/MISO", "SDAE-NOISE")
-    run_and_rename("./outputs/DAE-THRESHOLD/MISO", "SDAE-THRESHOLD")
+    run_and_rename(f"./{OUTPUT_DIR}/DAE/MISO", "SDAE")
+    run_and_rename(f"./{OUTPUT_DIR}/DAE-NOISE/MISO", "SDAE-NOISE")
+    run_and_rename(f"./{OUTPUT_DIR}/DAE-THRESHOLD/MISO", "SDAE-THRESHOLD")
     # Plotting and reporting
     post_process("DAE-THRESHOLD", "DAE-NOISE", "SDAE-THRESHOLD", "SDAE-NOISE")
 

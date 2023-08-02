@@ -17,6 +17,7 @@ from optuna.trial import TrialState
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
+from config import OUTPUT_DIR
 from data import (
     load_data,
     process_into_dataset,
@@ -466,29 +467,33 @@ def main_optuna_snn(input_dir: str):
     print("  Params: ")
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
-    with open(f"outputs{os.sep}best_trial_snn.json", "w", encoding="utf-8") as ofile:
+    with open(
+        f"{OUTPUT_DIR}{os.sep}best_trial_snn.json", "w", encoding="utf-8"
+    ) as ofile:
         json.dump(trial.params, ofile, indent=4)
     with open(
-        f"outputs{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
+        f"{OUTPUT_DIR}{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
     ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
-    with open(f"outputs{os.sep}pruned_trials_snn.json", "w", encoding="utf-8") as ofile:
+    with open(
+        f"{OUTPUT_DIR}{os.sep}pruned_trials_snn.json", "w", encoding="utf-8"
+    ) as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
             pruned_trials_out.append(trial_params.params)
         json.dump(pruned_trials_out, ofile, indent=4)
 
 
-def main_standard(input_dir="./outputs/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
+def main_standard(input_dir=f"./{OUTPUT_DIR}/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
     """
     Standard single trial for SNN run. If sweep is set to True, a simple
     grid-search of hyperparameters is performed
     """
     sweep = False
-    input_dirs = glob.glob("./outputs/DAE/MISO/*")
+    input_dirs = glob.glob(f"./{OUTPUT_DIR}/DAE/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
     if sweep:
@@ -508,9 +513,11 @@ def run_and_rename(inpur_dir: str, output_dir_name: str):
     for trial_dir in os.listdir(inpur_dir):
         print(os.path.join(inpur_dir, trial_dir))
         main_standard(os.path.join(inpur_dir, trial_dir))
-    os.rename(os.path.join("outputs", "SDAE"), os.path.join("outputs", output_dir_name))
+    os.rename(
+        os.path.join(OUTPUT_DIR, "SDAE"), os.path.join(OUTPUT_DIR, output_dir_name)
+    )
 
 
 if __name__ == "__main__":
-    run_and_rename("./outputs/DAE-NOISE/MISO", "SDAE-NOISE")
-    run_and_rename("./outputs/DAE-THRESHOLD/MISO", "SDAE-THRESHOLD")
+    run_and_rename(os.path.join(OUTPUT_DIR, "DAE-NOISE", "MISO"), "SDAE-NOISE")
+    run_and_rename(os.path.join(OUTPUT_DIR, "DAE-THRESHOLD", "MISO"), "SDAE-THRESHOLD")
