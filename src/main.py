@@ -9,7 +9,7 @@ import optuna
 import torch
 
 from torchsummary import summary
-from config import DEVICE, STANDARD_PARAMS, OUTPUT_DIR
+from config import DEVICE, STANDARD_PARAMS, get_output_dir
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
@@ -160,7 +160,7 @@ def main(config_vals: dict):
     config_vals["model_name"] = generate_model_name(config_vals)
     print(config_vals["model_name"])
     output_dir = os.path.join(
-        OUTPUT_DIR,
+        get_output_dir(),
         config_vals["model_type"],
         config_vals["anomaly_type"],
         config_vals["model_name"],

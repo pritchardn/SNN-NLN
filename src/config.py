@@ -2,6 +2,8 @@
 Contains global variables used throughout the project.
 Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
+import os
+
 import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -29,6 +31,10 @@ STANDARD_PARAMS = {
     "trial": 1,
 }
 
-OUTPUT_DIR = "outputs"
-DATA_DIR = "data"
-INPUT_DIR = "inputs"
+
+def get_output_dir():
+    return os.environ.get("OUTPUT_DIR", "outputs")
+
+
+def get_data_dir():
+    return os.environ.get("DATA_DIR", "data")

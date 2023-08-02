@@ -18,7 +18,7 @@ from sklearn.metrics import (
 )
 from torch import nn
 
-from config import DEVICE, OUTPUT_DIR
+from config import DEVICE, get_output_dir
 from data import reconstruct_patches, reconstruct_latent_patches
 from models import AutoEncoder
 
@@ -60,7 +60,9 @@ def save_metrics(
     """
     Saves metrics to a json file.
     """
-    output_filepath = os.path.join(OUTPUT_DIR, model_type, anomaly_type, model_name)
+    output_filepath = os.path.join(
+        get_output_dir(), model_type, anomaly_type, model_name
+    )
     os.makedirs(output_filepath, exist_ok=True)
     with open(
         os.path.join(output_filepath, "metrics.json"), "w", encoding="utf-8"
@@ -165,7 +167,9 @@ def plot_final_images(
             aspect="auto",
         )
 
-    output_filepath = os.path.join(OUTPUT_DIR, model_type, anomaly_type, model_name)
+    output_filepath = os.path.join(
+        get_output_dir(), model_type, anomaly_type, model_name
+    )
     os.makedirs(output_filepath, exist_ok=True)
     plt.savefig(os.path.join(output_filepath, f"neighbours_{neighbour}.png"), dpi=300)
 
@@ -369,7 +373,7 @@ def calculate_metrics(
             x_hat_recon,
         )
         np.save(
-            f"./{OUTPUT_DIR}/{model_type}/{anomaly_type}/{model_name}/test_query.npy",
+            f"{get_output_dir()}/{model_type}/{anomaly_type}/{model_name}/test_query.npy",
             z_query,
         )
     return ae_metrics, nln_metrics, dist_metrics, combined_metrics

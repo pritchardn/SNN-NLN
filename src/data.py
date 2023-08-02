@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
 
-from config import DATA_DIR
+from config import get_data_dir
 
 
 def limit_entries(image_data, masks, limit: int):
@@ -56,11 +56,11 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         strategy = None
         if mode == "HERA":
             strategy = aoflagger.load_strategy_file(
-                f"{DATA_DIR}{os.sep}flagging{os.sep}hera_{threshold}.lua"
+                f"{get_data_dir()}{os.sep}flagging{os.sep}hera_{threshold}.lua"
             )
         elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
-                f"{DATA_DIR}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+                f"{get_data_dir()}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
             )
         if not strategy:
             return None
@@ -142,7 +142,7 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     return recon
 
 
-def load_data(excluded_rfi=None, data_path="data"):
+def load_data(excluded_rfi=None, data_path=get_data_dir()):
     """
     Loads original data from pickle files.
     If excluded_rfi is None, training and test data will contain all types of RFI.

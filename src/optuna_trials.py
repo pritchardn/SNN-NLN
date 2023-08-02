@@ -9,7 +9,7 @@ import optuna
 import torch
 from optuna.trial import TrialState
 
-from config import DEVICE, OUTPUT_DIR
+from config import DEVICE, get_output_dir
 from data import process_into_dataset, load_data
 from evaluation import evaluate_model
 from plotting import plot_loss_history
@@ -50,7 +50,7 @@ def run_trial(trial: optuna.Trial):
     config_vals["model_name"] = generate_model_name(config_vals)
     print(json.dumps(config_vals, indent=4))
     output_dir = (
-        f'./{OUTPUT_DIR}/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
+        f'./{get_output_dir()}/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
     train_x, train_y, test_x, test_y, _ = load_data(
@@ -182,17 +182,19 @@ def main_optuna():
     print("  Params: ")
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
-    with open(f"{OUTPUT_DIR}{os.sep}best_trial.json", "w", encoding="utf-08") as ofile:
+    with open(
+        f"{get_output_dir()}{os.sep}best_trial.json", "w", encoding="utf-08"
+    ) as ofile:
         json.dump(trial.params, ofile, indent=4)
     with open(
-        f"{OUTPUT_DIR}{os.sep}completed_trials.json", "w", encoding="utf-08"
+        f"{get_output_dir()}{os.sep}completed_trials.json", "w", encoding="utf-08"
     ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
     with open(
-        f"{OUTPUT_DIR}{os.sep}pruned_trials.json", "w", encoding="utf-08"
+        f"{get_output_dir()}{os.sep}pruned_trials.json", "w", encoding="utf-08"
     ) as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:

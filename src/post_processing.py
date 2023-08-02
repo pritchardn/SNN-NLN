@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from config import OUTPUT_DIR
+from config import get_output_dir
 
 
 def write_csv_output_from_dict(
@@ -119,7 +119,7 @@ def make_threshold_plot(dframe: pd.DataFrame):
         axis.set_xticks(xticks)
         axis.set_xticklabels(xticklabels)
         axis.set_xlabel("AOFlagger Threshold")
-    plt.savefig(os.path.join(OUTPUT_DIR, "threshold_plot.png"), dpi=300)
+    plt.savefig(os.path.join(get_output_dir(), "threshold_plot.png"), dpi=300)
     plt.close("all")
 
 
@@ -177,7 +177,7 @@ def make_ood_plot(dframe: pd.DataFrame):
     axes[2].set_xlabel("Excluded RFI")
     axes[2].set_xticks(index)
     axes[2].set_xticklabels(sub_results["excluded_rfi"].unique())
-    plt.savefig(os.path.join(OUTPUT_DIR, "ood_plot.png"), dpi=300)
+    plt.savefig(os.path.join(get_output_dir(), "ood_plot.png"), dpi=300)
     plt.close("all")
 
 
@@ -227,7 +227,7 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     axes[2].set_ylabel("F1")
     axes[2].set_xlabel("Slice Length")
     axes[2].set_xticks(sub_results["average_n"].unique())
-    plt.savefig(os.path.join(OUTPUT_DIR, "inferencetime_plot.png"), dpi=300)
+    plt.savefig(os.path.join(get_output_dir(), "inferencetime_plot.png"), dpi=300)
     plt.close("all")
 
 
