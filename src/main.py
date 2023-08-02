@@ -69,6 +69,7 @@ def train_model(
     test_masks_original=None,
     train_x=None,
     trial: optuna.Trial = None,
+    unshuffled_train_dataset=None,
 ):
     """
     Trains the auto-encoder, discriminator and generator.
@@ -76,7 +77,7 @@ def train_model(
     ae_loss_history = []
     disc_loss_history = []
     gen_loss_history = []
-    metrics = {"mse": 1.0}
+    metrics = {"f1": 1.0}
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}\n-----------")
         running_ae_loss = 0.0
@@ -111,37 +112,39 @@ def train_model(
         print("Discriminator Loss: ", interim_disc_loss)
         print("Generator Loss: ", interim_gen_loss)
 
-        plot_intermediate_images(
-            auto_encoder,
-            train_dataset,
-            epoch + 1,
-            model_type,
-            output_dir,
-            train_dataset.batch_size,
-        )
         if (
             config_vals is not None
             and test_dataset is not None
             and test_masks_original is not None
             and train_x is not None
             and trial is not None
+            and unshuffled_train_dataset is not None
         ):
             metrics = mid_run_calculate_metrics(
                 auto_encoder,
                 test_masks_original,
                 test_dataset,
-                train_dataset,
+                unshuffled_train_dataset,
                 config_vals["neighbours"],
                 config_vals["latent_dimension"],
                 train_x[0].shape[0],
                 config_vals["patch_size"],
             )
-            trial.report(metrics["mse"], epoch)
-            print(f"mse:\t{metrics['mse']}")
+            trial.report(metrics["f1"], epoch)
+            print(f"f1:\t{metrics['f1']}")
             if trial.should_prune():
                 raise optuna.TrialPruned()
+        else:
+            plot_intermediate_images(
+                auto_encoder,
+                train_dataset,
+                epoch + 1,
+                model_type,
+                output_dir,
+                train_dataset.batch_size,
+            )
     return (
-        metrics["mse"],
+        metrics["f1"],
         auto_encoder,
         discriminator,
         ae_loss_history,
@@ -190,7 +193,7 @@ def main(config_vals: dict):
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
     auto_encoder.eval()
-    for shape_test in train_dataset:
+    for _, (shape_test, _) in enumerate(test_dataset):
         auto_encoder(shape_test.to(DEVICE))
         break
     summary(auto_encoder, (1, 32, 32))
@@ -370,7 +373,4 @@ def rerun_evaluation(input_dir):
 
 
 if __name__ == "__main__":
-    main_sweep_threshold(10)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-THRESHOLD"))
-    main_sweep_noise(10)
-    os.rename(os.path.join("outputs", "DAE"), os.path.join("outputs", "DAE-NOISE"))
+    main_standard()

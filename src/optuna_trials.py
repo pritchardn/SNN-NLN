@@ -28,9 +28,9 @@ def run_trial(trial: optuna.Trial):
     config_vals = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
         "epochs": trial.suggest_int("epochs", 2, 128),
-        "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-5, 1e-3),
-        "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-5, 1e-3),
-        "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-5, 1e-3),
+        "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-4, 10e-4),
+        "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-4, 10e-4),
+        "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-4, 10e-4),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
         "num_layers": 5,
         "latent_dimension": latent_dimension,
@@ -67,6 +67,17 @@ def run_trial(trial: optuna.Trial):
         filter_rfi_patches=True,
         shuffle=True,
     )
+    unshuffled_train_dataset, _ = process_into_dataset(
+        train_x,
+        train_y,
+        batch_size=config_vals["batch_size"],
+        mode="HERA",
+        threshold=config_vals["threshold"],
+        patch_size=config_vals["patch_size"],
+        stride=config_vals["patch_stride"],
+        filter_rfi_patches=True,
+        shuffle=False,
+    )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
         test_y,
@@ -101,7 +112,7 @@ def run_trial(trial: optuna.Trial):
     )
     # Train model
     (
-        mse,
+        f1_score,
         auto_encoder,
         discriminator,
         ae_loss_history,
@@ -122,6 +133,7 @@ def run_trial(trial: optuna.Trial):
         test_masks_original=test_masks_original,
         train_x=train_x,
         trial=trial,
+        unshuffled_train_dataset=unshuffled_train_dataset,
     )
     auto_encoder.eval()
     discriminator.eval()
@@ -132,7 +144,7 @@ def run_trial(trial: optuna.Trial):
         auto_encoder,
         test_masks_original,
         test_dataset,
-        train_dataset,
+        unshuffled_train_dataset,
         config_vals.get("neighbours"),
         config_vals.get("latent_dimension"),
         train_x[0].shape[0],
@@ -144,16 +156,16 @@ def run_trial(trial: optuna.Trial):
     )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_json(config_vals, output_dir, "config")
-    mse = metrics["mse"]
-    return mse
+    f1_score = metrics["f1"]
+    return f1_score
 
 
 def main_optuna():
     """
     Main function for optuna hyperparameter optimization.
     """
-    study = optuna.create_study(direction="minimize")
-    study.optimize(run_trial, n_trials=64)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(run_trial, n_trials=32)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
