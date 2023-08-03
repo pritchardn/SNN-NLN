@@ -183,18 +183,18 @@ def main_optuna():
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
     with open(
-        f"{get_output_dir()}{os.sep}best_trial.json", "w", encoding="utf-08"
+        f"{get_output_dir()}{os.sep}best_trial.json", "w", encoding="utf-8"
     ) as ofile:
         json.dump(trial.params, ofile, indent=4)
     with open(
-        f"{get_output_dir()}{os.sep}completed_trials.json", "w", encoding="utf-08"
+        f"{get_output_dir()}{os.sep}completed_trials.json", "w", encoding="utf-8"
     ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
     with open(
-        f"{get_output_dir()}{os.sep}pruned_trials.json", "w", encoding="utf-08"
+        f"{get_output_dir()}{os.sep}pruned_trials.json", "w", encoding="utf-8"
     ) as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
