@@ -17,6 +17,7 @@ from optuna.trial import TrialState
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
+import config
 from config import get_output_dir
 from data import (
     load_data,
@@ -270,7 +271,7 @@ def reconstruct_snn_inference(
             reconstruction[indx, ...] = np.hstack(batch)
             indx += 1
             counter, batch = 0, []
-    reconstruction = reconstruction.transpose(0, 3, 4, 1, 2)
+    reconstruction = reconstruction.transpose(0, 3, 4, 2, 1)
     return reconstruction
 
 
@@ -346,16 +347,17 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
     save_json(snn_metrics, output_dir, "metrics")
 
 
-def main(input_dir: str, time_length, average_n, skip_exists=True, plot=True):
+def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip_exists=True, plot=True):
     """
     The main conversion, inference and evaluation function.
     """
     config_vals = load_config(input_dir)
     config_vals["time_length"] = time_length
     config_vals["average_n"] = average_n
-    config_vals["model_type"] = "SDAE"
+    config_vals["model_type"] = out_model_type
     config_vals["model_name"] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
+    print(output_dir)
     if skip_exists and os.path.exists(output_dir):
         return
     # Get dataset
@@ -432,14 +434,14 @@ def run_trial_snn(
     os.makedirs(output_dir, exist_ok=True)
     save_results(config_vals, sln_metrics, output_dir)
     torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
-    return sln_metrics["mse"]
+    return sln_metrics["f1"]
 
 
-def main_optuna_snn(input_dir: str):
+def main_optuna_snn(input_dir: str, n_trials=64):
     """
     Main loop for optuna hyperparameter optimization of SNN models.
     """
-    study = optuna.create_study(direction="minimize")
+    study = optuna.create_study(direction="maximize")
     config_vals = load_config(input_dir)
     # Get dataset
     test_dataset, test_masks_original = load_test_dataset(config_vals)
@@ -449,7 +451,7 @@ def main_optuna_snn(input_dir: str):
         lambda trial: run_trial_snn(
             trial, config_vals, test_dataset, test_masks_original, model
         ),
-        n_trials=60,
+        n_trials=n_trials,
     )
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -487,13 +489,14 @@ def main_optuna_snn(input_dir: str):
         json.dump(pruned_trials_out, ofile, indent=4)
 
 
-def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_10/"):
+def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_10/",
+                  input_model_type="DAE", output_model_type="SDAE"):
     """
     Standard single trial for SNN run. If sweep is set to True, a simple
     grid-search of hyperparameters is performed
     """
     sweep = False
-    input_dirs = glob.glob(f"./{get_output_dir()}/DAE/MISO/*")
+    input_dirs = glob.glob(f"./{get_output_dir()}/{input_model_type}/MISO/*")
     time_lengths = [32, 64]
     average_n = [2, 4, 8, 16, 32]
     if sweep:
@@ -504,9 +507,10 @@ def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_1
                     if time_length == 64 and average_n == 32:
                         plot = True
                     print(f"{curr_input_dir}\t{time_length}\t{window_size}")
-                    main(curr_input_dir, time_length, window_size, plot=plot)
+                    main_snn(curr_input_dir, time_length, window_size, plot=plot)
     else:
-        main(input_dir, 39, 3, skip_exists=True, plot=False)
+        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"], output_model_type=output_model_type,
+                 skip_exists=True, plot=False)
 
 
 def run_and_rename(inpur_dir: str, output_dir_name: str):
@@ -520,7 +524,4 @@ def run_and_rename(inpur_dir: str, output_dir_name: str):
 
 
 if __name__ == "__main__":
-    run_and_rename(os.path.join(get_output_dir(), "DAE-NOISE", "MISO"), "SDAE-NOISE")
-    run_and_rename(
-        os.path.join(get_output_dir(), "DAE-THRESHOLD", "MISO"), "SDAE-THRESHOLD"
-    )
+    main_snn("./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/", 32, 10, plot=True)

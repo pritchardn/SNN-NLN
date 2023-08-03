@@ -31,6 +31,11 @@ STANDARD_PARAMS = {
     "trial": 1,
 }
 
+SNN_PARAMS = {
+    "average_n": 3,
+    "time_length": 39
+}
+
 
 def get_output_dir():
     return os.environ.get("OUTPUT_DIR", "outputs")
