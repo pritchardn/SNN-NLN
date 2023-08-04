@@ -48,14 +48,14 @@ def main_hpc():
         model_type = os.environ.get("MODEL_TYPE", "DAE")
         out_model_type = "S" + model_type
         model_trials = sorted(
-            glob.glob(os.path.join(config.get_output_dir(), model_type, "MISO", "*")))
+            glob.glob(os.path.join(config.get_output_dir(), model_type, "MISO", "*"))
+        )
         if num_tasks > len(model_trials):
             print_incorrect_usage(model_trials, num_trials)
             sys.exit(1)
         input_dir = model_trials[task_id]
         print(input_dir)
-        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"],
-                 out_model_type=out_model_type, plot=True)
+        main_snn(input_dir, out_model_type=out_model_type, plot=True)
         sys.exit(0)
     else:  # Standard
         config_vals["trial"] = task_id + 1

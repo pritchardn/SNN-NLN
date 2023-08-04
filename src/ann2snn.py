@@ -136,11 +136,13 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1, n_limit=-1):
     return np.asarray(full_output)  # [B, T, N, C, W, H]
 
 
-def convert_to_snn(model, test_data_loader):
+def convert_to_snn(model, test_data_loader, convert_threshold):
     """
     Converts an ANN model to an SNN model using SpikingJelly
     """
-    model_converter = ann2snn.Converter(mode="max", dataloader=test_data_loader)
+    model_converter = ann2snn.Converter(
+        mode=convert_threshold, dataloader=test_data_loader
+    )
     snn_model = model_converter(model)
     snn_model.graph.print_tabular()
     return snn_model
@@ -150,10 +152,16 @@ def test_snn_model(snn_model, test_data_loader, time_length=64, average_n=10):
     """
     Tests an SNN model, simply runs through and plots outputs
     """
-    full_output = infer_snn(snn_model, test_data_loader, runtime=time_length, n_limit=average_n)
+    full_output = infer_snn(
+        snn_model, test_data_loader, runtime=time_length, n_limit=average_n
+    )
     plot_outputs(full_output)
     plot_input_images(
-        test_data_loader.dataset[:test_data_loader.batch_size][0].cpu().detach().numpy())
+        test_data_loader.dataset[: test_data_loader.batch_size][0]
+        .cpu()
+        .detach()
+        .numpy()
+    )
 
 
 def load_test_dataset(config_vals: dict):
@@ -203,13 +211,13 @@ def snln(x_hat, test_dataset, average_n):
 
 
 def evaluate_snn(
-        model,
-        test_dataset,
-        test_masks_original,
-        patch_size,
-        original_size,
-        runtime,
-        average_n,
+    model,
+    test_dataset,
+    test_masks_original,
+    patch_size,
+    original_size,
+    runtime,
+    average_n,
 ):
     """
     Evaluates an SNN model.
@@ -217,7 +225,9 @@ def evaluate_snn(
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
     )
-    x_hat = infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1, n_limit=average_n)
+    x_hat = infer_snn(
+        model, test_dataset, runtime=runtime, batch_limit=-1, n_limit=average_n
+    )
     snln_error = snln(x_hat, test_dataset, average_n)
     if patch_size:
         if snln_error.ndim == 4:
@@ -237,7 +247,7 @@ def evaluate_snn(
 
 
 def reconstruct_snn_inference(
-        inference: np.array, original_size: int, kernel_size: int
+    inference: np.array, original_size: int, kernel_size: int
 ):
     """
     Reconstructs the inference from the SNN model into original image size.
@@ -246,7 +256,7 @@ def reconstruct_snn_inference(
     n_patches = original_size // kernel_size
     reconstruction = np.empty(
         [
-            transpose.shape[0] // n_patches ** 2,
+            transpose.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             transpose.shape[-2],
@@ -279,7 +289,7 @@ def reconstruct_snn_inference(
 
 
 def plot_snn_results(
-        original_images, test_masks_recon, snln_error_recon, inference, output_dir
+    original_images, test_masks_recon, snln_error_recon, inference, output_dir
 ):
     """
     Plots the results of an SNN model.
@@ -351,8 +361,15 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
     save_json(snn_metrics, output_dir, "metrics")
 
 
-def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip_exists=True,
-             plot=True):
+def main_snn(
+    input_dir: str,
+    time_length=config.SNN_PARAMS["time_length"],
+    average_n=config.SNN_PARAMS["average_n"],
+    out_model_type="SDAE",
+    skip_exists=True,
+    plot=True,
+    convert_threshold=config.SNN_PARAMS["convert_threshold"],
+):
     """
     The main conversion, inference and evaluation function.
     """
@@ -360,6 +377,7 @@ def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip
     config_vals["time_length"] = time_length
     config_vals["average_n"] = average_n
     config_vals["model_type"] = out_model_type
+    config_vals["convert_threshold"] = convert_threshold
     config_vals["model_name"] = generate_model_name(config_vals)
     output_dir = generate_output_dir(config_vals)
     print(output_dir)
@@ -370,7 +388,7 @@ def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip
     # Load model
     model = load_ann_model(input_dir, config_vals)
     # Convert to SNN
-    snn_model = convert_to_snn(model, test_dataset)
+    snn_model = convert_to_snn(model, test_dataset, convert_threshold)
     # Evaluate
     sln_metrics, snln_error_recon, inference = evaluate_snn(
         snn_model,
@@ -408,13 +426,16 @@ def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip
 
 
 def run_trial_snn(
-        trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
+    trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
 ):
     """
     Version of run_trial for SNN models for optuna optimization.
     """
     config_vals["time_length"] = trial.suggest_int("time_length", 16, 64)
     config_vals["average_n"] = trial.suggest_int("average_n", 1, 64)
+    config_vals["convert_threshold"] = trial.suggest_float(
+        "convert_threshold", 0.0, 1.0
+    )
     config_vals["model_type"] = "SDAE"
     if "trial" in config_vals:
         config_vals["trial"] = None
@@ -424,7 +445,7 @@ def run_trial_snn(
     if config_vals["average_n"] > config_vals["time_length"]:
         raise optuna.exceptions.TrialPruned
     # Convert to SNN
-    snn_model = convert_to_snn(model, test_dataset)
+    snn_model = convert_to_snn(model, test_dataset, config_vals["convert_threshold"])
     # Evaluate
     sln_metrics, _, _ = evaluate_snn(
         snn_model,
@@ -475,18 +496,18 @@ def main_optuna_snn(input_dir: str, n_trials=64):
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
     with open(
-            f"{get_output_dir()}{os.sep}best_trial_snn.json", "w", encoding="utf-8"
+        f"{get_output_dir()}{os.sep}best_trial_snn.json", "w", encoding="utf-8"
     ) as ofile:
         json.dump(trial.params, ofile, indent=4)
     with open(
-            f"{get_output_dir()}{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
+        f"{get_output_dir()}{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
     ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
     with open(
-            f"{get_output_dir()}{os.sep}pruned_trials_snn.json", "w", encoding="utf-8"
+        f"{get_output_dir()}{os.sep}pruned_trials_snn.json", "w", encoding="utf-8"
     ) as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
@@ -494,8 +515,11 @@ def main_optuna_snn(input_dir: str, n_trials=64):
         json.dump(pruned_trials_out, ofile, indent=4)
 
 
-def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_10/",
-                  input_model_type="DAE", output_model_type="SDAE"):
+def main_standard(
+    input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_10/",
+    input_model_type="DAE",
+    output_model_type="SDAE",
+):
     """
     Standard single trial for SNN run. If sweep is set to True, a simple
     grid-search of hyperparameters is performed
@@ -514,9 +538,14 @@ def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_1
                     print(f"{curr_input_dir}\t{time_length}\t{window_size}")
                     main_snn(curr_input_dir, time_length, window_size, plot=plot)
     else:
-        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"],
-                 out_model_type=output_model_type,
-                 skip_exists=True, plot=False)
+        main_snn(
+            input_dir,
+            config.SNN_PARAMS["time_length"],
+            config.SNN_PARAMS["average_n"],
+            out_model_type=output_model_type,
+            skip_exists=True,
+            plot=False,
+        )
 
 
 def run_and_rename(inpur_dir: str, output_dir_name: str):
@@ -530,5 +559,9 @@ def run_and_rename(inpur_dir: str, output_dir_name: str):
 
 
 if __name__ == "__main__":
-    for limit in [1, 16, 32, 64, 128, 256]:
-        main_snn("./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/", 256, limit, plot=True)
+    main_snn(
+        "./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/",
+        256,
+        128,
+        plot=False,
+    )
