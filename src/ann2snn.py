@@ -288,6 +288,7 @@ def plot_snn_results(
     os.makedirs(plot_directory, exist_ok=True)
     plot_images = np.moveaxis(original_images[:10, ...], 1, -1)
     plot_masks = np.moveaxis(test_masks_recon[:10, ...], 1, -1)
+    snln_error_recon = np.where(snln_error_recon > 0.0, 1, 0.0)
     plot_snln = np.moveaxis(snln_error_recon[:10, ...], 1, -1)
     plot_inference = inference[:10, ...]
     fig, axs = plt.subplots(10, 4, figsize=(10, 8))
