@@ -189,8 +189,6 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
         (dframe.model_type == "SDAE")
         & (dframe.excluded_rfi.isna())
         & (dframe.threshold == 10)
-        & (dframe.latent_dimension == 32)
-        & (dframe.num_layers == 2)
     )
     sub_results = dframe[pandas_filter]
     print(len(sub_results))
@@ -243,7 +241,11 @@ def collate_results_to_file(models: list, output_filename: str = "results"):
 
 
 def post_process(
-    dae_threshold_name, dae_noise_name, sdae_threshold_name, sdae_noise_name
+    dae_threshold_name,
+    dae_noise_name,
+    sdae_threshold_name,
+    sdae_noise_name,
+    sdae_name=None,
 ):
     # Make threshold plot
     collate_results_to_file(
@@ -258,9 +260,10 @@ def post_process(
     results = pd.read_csv("outputs/results_noise.csv")
     make_ood_plot(results)
     # Make inference time plot
-    collate_results_to_file(
-        [sdae_threshold_name, sdae_noise_name], output_filename="results_inferencetime"
-    )
+    sdae_models = [sdae_threshold_name, sdae_noise_name]
+    if sdae_name:
+        sdae_models.append(sdae_name)
+    collate_results_to_file(sdae_models, output_filename="results_inferencetime")
     results = pd.read_csv("outputs/results_inferencetime.csv")
     make_inferencetime_plot(results)
 
@@ -271,4 +274,5 @@ if __name__ == "__main__":
         "DAE-NOISE-08-01",
         "SDAE-THRESHOLD-08-01",
         "SDAE-NOISE-08-01",
+        "SDAE",
     )
