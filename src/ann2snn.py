@@ -110,7 +110,6 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1, n_limit=-1):
     model.eval().to("cuda")
     full_output = []
     i = 0
-    print(model.modules())
     bound = runtime - n_limit - 1
     with torch.no_grad():
         for img, _ in tqdm(dataloader):
@@ -563,5 +562,5 @@ if __name__ == "__main__":
         "./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/",
         256,
         128,
-        plot=False,
+        plot=True,
     )
