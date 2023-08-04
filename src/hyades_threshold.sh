@@ -15,8 +15,8 @@ module load python/3.8.12
 cd /home/npritchard/SNN-NLN
 source /home/npritchard/SNN-NLN/snn-nln/bin/activate
 
-export NUM_TRIALS=1
-export TASK_TYPE="STANDARD"
+export NUM_TRIALS=10
+export TASK_TYPE="THRESHOLD"
 export OUTPUT_DIR="/scratch/npritchard/outputs"
 export DATA_DIR="/scratch/npritchard/data"
 export INPUT_DIR="/scratch/npritchard/data"
