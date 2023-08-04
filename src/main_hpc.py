@@ -1,7 +1,10 @@
+import glob
 import os
 import sys
+import json
 
 import config
+from ann2snn import main_snn
 from main import main
 
 
@@ -41,10 +44,21 @@ def main_hpc():
         config_vals["threshold"] = threshold_range[threshold_index]
         config_vals["trial"] = task_id % num_trials + 1
         config_vals["model_type"] = "DAE-THRESHOLD"
+    elif task_type == "SNN":
+        model_type = os.environ.get("MODEL_TYPE", "DAE")
+        out_model_type = "S" + model_type
+        model_trials = sorted(
+            glob.glob(os.path.join(config.get_output_dir(), model_type, "MISO", "*")))
+        if num_tasks > len(model_trials):
+            print_incorrect_usage(model_trials, num_trials)
+            sys.exit(1)
+        input_dir = model_trials[task_id]
+        print(input_dir)
+        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"],
+                 out_model_type=out_model_type, plot=True)
+        sys.exit(0)
     else:  # Standard
         config_vals["trial"] = task_id + 1
-    import json
-
     print(json.dumps(config_vals, indent=4))
     print(config.get_output_dir())
     print(config.get_data_dir())
