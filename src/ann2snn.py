@@ -7,12 +7,12 @@ import json
 import math
 import os
 
-from matplotlib import animation
-from matplotlib import pyplot as plt
 import matplotlib.image
 import numpy as np
 import optuna
 import torch
+from matplotlib import animation
+from matplotlib import pyplot as plt
 from optuna.trial import TrialState
 from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
@@ -98,7 +98,7 @@ def plot_outputs(out_images):
         animated_plotting(output_states)
 
 
-def infer_snn(model, dataloader, runtime=50, batch_limit=1):
+def infer_snn(model, dataloader, runtime=50, batch_limit=1, n_limit=-1):
     """
     Runs inference on an SNN model.
     Adds additional runtime and batch_limit variables
@@ -110,6 +110,8 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1):
     model.eval().to("cuda")
     full_output = []
     i = 0
+    print(model.modules())
+    bound = runtime - n_limit - 1
     with torch.no_grad():
         for img, _ in tqdm(dataloader):
             img = img.to("cuda")
@@ -122,12 +124,11 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1):
                     if hasattr(module, "reset"):
                         module.reset()
                 for time_step in range(runtime):
-                    if time_step == 0:
-                        out = model(img)
-                    else:
-                        out += model(img)
+                    out = model(img)
+                    # out = scale_image(out)
                     # Add current state to image building
-                    out_images.append(out.cpu().numpy())
+                    if time_step > bound:
+                        out_images.append(out.cpu().numpy())
                 full_output.append(out_images)
             i += 1
             if i == batch_limit:
@@ -145,12 +146,14 @@ def convert_to_snn(model, test_data_loader):
     return snn_model
 
 
-def test_snn_model(snn_model, test_data_loader):
+def test_snn_model(snn_model, test_data_loader, time_length=64, average_n=10):
     """
     Tests an SNN model, simply runs through and plots outputs
     """
-    full_output = infer_snn(snn_model, test_data_loader, runtime=64)
+    full_output = infer_snn(snn_model, test_data_loader, runtime=time_length, n_limit=average_n)
     plot_outputs(full_output)
+    plot_input_images(
+        test_data_loader.dataset[:test_data_loader.batch_size][0].cpu().detach().numpy())
 
 
 def load_test_dataset(config_vals: dict):
@@ -192,21 +195,21 @@ def snln(x_hat, test_dataset, average_n):
     Spiking NLN by averaging over last n timesteps.
     """
     x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
-    average_x_hat = np.vstack(np.mean(x_hat_trimmed, axis=1))
-    average_x_hat = scale_image(average_x_hat)
+    sum_x_hat = np.vstack(np.sum(x_hat_trimmed, axis=1))
+    sum_x_hat = scale_image(sum_x_hat)
     images = test_dataset.dataset[:][0].cpu().detach().numpy()
-    error = images - average_x_hat
+    error = images - sum_x_hat
     return error
 
 
 def evaluate_snn(
-    model,
-    test_dataset,
-    test_masks_original,
-    patch_size,
-    original_size,
-    runtime,
-    average_n,
+        model,
+        test_dataset,
+        test_masks_original,
+        patch_size,
+        original_size,
+        runtime,
+        average_n,
 ):
     """
     Evaluates an SNN model.
@@ -214,7 +217,7 @@ def evaluate_snn(
     test_masks_original_reconstructed = reconstruct_patches(
         test_masks_original, original_size, patch_size
     )
-    x_hat = infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1)
+    x_hat = infer_snn(model, test_dataset, runtime=runtime, batch_limit=-1, n_limit=average_n)
     snln_error = snln(x_hat, test_dataset, average_n)
     if patch_size:
         if snln_error.ndim == 4:
@@ -234,7 +237,7 @@ def evaluate_snn(
 
 
 def reconstruct_snn_inference(
-    inference: np.array, original_size: int, kernel_size: int
+        inference: np.array, original_size: int, kernel_size: int
 ):
     """
     Reconstructs the inference from the SNN model into original image size.
@@ -243,7 +246,7 @@ def reconstruct_snn_inference(
     n_patches = original_size // kernel_size
     reconstruction = np.empty(
         [
-            transpose.shape[0] // n_patches**2,
+            transpose.shape[0] // n_patches ** 2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             transpose.shape[-2],
@@ -276,7 +279,7 @@ def reconstruct_snn_inference(
 
 
 def plot_snn_results(
-    original_images, test_masks_recon, snln_error_recon, inference, output_dir
+        original_images, test_masks_recon, snln_error_recon, inference, output_dir
 ):
     """
     Plots the results of an SNN model.
@@ -347,7 +350,8 @@ def save_results(config_vals: dict, snn_metrics: dict, output_dir: str):
     save_json(snn_metrics, output_dir, "metrics")
 
 
-def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip_exists=True, plot=True):
+def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip_exists=True,
+             plot=True):
     """
     The main conversion, inference and evaluation function.
     """
@@ -376,6 +380,10 @@ def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip
         time_length,
         average_n,
     )
+    # Save results to file
+    os.makedirs(output_dir, exist_ok=True)
+    save_results(config_vals, sln_metrics, output_dir)
+    torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
     # Plot results
     if plot:
         test_images = reconstruct_patches(
@@ -396,14 +404,10 @@ def main_snn(input_dir: str, time_length, average_n, out_model_type="SDAE", skip
             inference_recon,
             output_dir,
         )
-    # Save results to file
-    os.makedirs(output_dir, exist_ok=True)
-    save_results(config_vals, sln_metrics, output_dir)
-    torch.save(snn_model.state_dict(), os.path.join(output_dir, "snn_autoencoder.pt"))
 
 
 def run_trial_snn(
-    trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
+        trial: optuna.Trial, config_vals: dict, test_dataset, test_masks_original, model
 ):
     """
     Version of run_trial for SNN models for optuna optimization.
@@ -470,18 +474,18 @@ def main_optuna_snn(input_dir: str, n_trials=64):
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
     with open(
-        f"{get_output_dir()}{os.sep}best_trial_snn.json", "w", encoding="utf-8"
+            f"{get_output_dir()}{os.sep}best_trial_snn.json", "w", encoding="utf-8"
     ) as ofile:
         json.dump(trial.params, ofile, indent=4)
     with open(
-        f"{get_output_dir()}{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
+            f"{get_output_dir()}{os.sep}completed_trials_snn.json", "w", encoding="utf-8"
     ) as ofile:
         completed_trials_out = []
         for trial_params in complete_trials:
             completed_trials_out.append(trial_params.params)
         json.dump(completed_trials_out, ofile, indent=4)
     with open(
-        f"{get_output_dir()}{os.sep}pruned_trials_snn.json", "w", encoding="utf-8"
+            f"{get_output_dir()}{os.sep}pruned_trials_snn.json", "w", encoding="utf-8"
     ) as ofile:
         pruned_trials_out = []
         for trial_params in pruned_trials:
@@ -509,7 +513,8 @@ def main_standard(input_dir=f"./{get_output_dir()}/DAE/MISO/DAE_MISO_HERA_32_2_1
                     print(f"{curr_input_dir}\t{time_length}\t{window_size}")
                     main_snn(curr_input_dir, time_length, window_size, plot=plot)
     else:
-        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"], output_model_type=output_model_type,
+        main_snn(input_dir, config.SNN_PARAMS["time_length"], config.SNN_PARAMS["average_n"],
+                 out_model_type=output_model_type,
                  skip_exists=True, plot=False)
 
 
@@ -524,4 +529,5 @@ def run_and_rename(inpur_dir: str, output_dir_name: str):
 
 
 if __name__ == "__main__":
-    main_snn("./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/", 32, 10, plot=True)
+    for limit in [1, 16, 32, 64, 128, 256]:
+        main_snn("./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/", 256, limit, plot=True)
