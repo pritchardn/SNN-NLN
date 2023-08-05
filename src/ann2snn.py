@@ -560,7 +560,7 @@ def run_and_rename(inpur_dir: str, output_dir_name: str):
 if __name__ == "__main__":
     main_snn(
         "./outputs/DAE/MISO/DAE_MISO_HERA_32_5_10_trial_1_nimble-slug/",
-        256,
-        128,
+        time_length=256,
+        average_n=128,
         plot=True,
     )

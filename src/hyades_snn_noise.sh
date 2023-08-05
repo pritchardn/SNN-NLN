@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=32GB
+#SBATCH --mem=256GB
 #SBATCH --time=1:00:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
@@ -21,5 +21,7 @@ export MODEL_TYPE="DAE-NOISE"
 export OUTPUT_DIR="/scratch/npritchard/outputs"
 export DATA_DIR="/scratch/npritchard/data"
 export INPUT_DIR="/scratch/npritchard/data"
+export TIME_LENGTH=256
+export AVERAGE_N=128
 
 python3 main_hpc.py

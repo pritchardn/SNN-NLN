@@ -34,7 +34,7 @@ STANDARD_PARAMS = {
 SNN_PARAMS = {
     "average_n": 128,
     "time_length": 256,
-    "convert_threshold": 0.225,
+    "convert_threshold": "99.9%",
 }
 
 
