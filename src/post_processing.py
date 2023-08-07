@@ -4,6 +4,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
 
 import csv
+import itertools
 import json
 import os
 
@@ -56,6 +57,14 @@ def collate_results(outputdir: str, models: list) -> list:
                 else:
                     trial_vals.update(result_data)
             print(trial_vals)
+            if trial_vals["time_length"]:
+                trial_vals[
+                    "model_type"
+                ] = f"{trial_vals['model_type']}-{trial_vals['time_length']}"
+            if trial_vals["average_n"]:
+                trial_vals[
+                    "model_type"
+                ] = f"{trial_vals['model_type']}-{trial_vals['average_n']}"
             result_list.append(trial_vals)
     return result_list
 
@@ -229,6 +238,24 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     plt.close("all")
 
 
+def make_performance_table(dframe: pd.DataFrame):
+    """
+    Makes a table of the results.
+    """
+    sub_results = dframe[pd.isna(dframe["excluded_rfi"])]
+    _, axes = plt.subplots(1, 3, figsize=(15, 5))
+    results = sub_results.groupby("model_type").agg(
+        {
+            "auroc": ["mean", "std"],
+            "auprc": ["mean", "std"],
+            "f1": ["mean", "std"],
+            "mse": ["mean", "std"],
+        }
+    )
+    with open("outputs/performance_table.csv", "w", encoding="utf-8") as ofile:
+        results.to_csv(ofile)
+
+
 def collate_results_to_file(models: list, output_filename: str = "results"):
     """
     Collates results and writes to csv file.
@@ -241,38 +268,67 @@ def collate_results_to_file(models: list, output_filename: str = "results"):
 
 
 def post_process(
-    dae_threshold_name,
-    dae_noise_name,
-    sdae_threshold_name,
-    sdae_noise_name,
-    sdae_name=None,
+    dae_names: list,
+    dae_threshold_names: list,
+    dae_noise_names: list,
+    sdae_threshold_names: list,
+    sdae_noise_names: list,
+    sdae_names: list,
 ):
     # Make threshold plot
     collate_results_to_file(
-        [dae_threshold_name, sdae_threshold_name], output_filename="results_threshold"
+        [
+            filename
+            for filename in itertools.chain.from_iterable(
+                [dae_threshold_names, sdae_threshold_names]
+            )
+        ],
+        output_filename="results_threshold",
     )
     results = pd.read_csv("outputs/results_threshold.csv")
     make_threshold_plot(results)
     # Make ood plot
     collate_results_to_file(
-        [dae_noise_name, sdae_noise_name], output_filename="results_noise"
+        [
+            filename
+            for filename in itertools.chain.from_iterable(
+                [dae_noise_names, sdae_noise_names]
+            )
+        ],
+        output_filename="results_noise",
     )
     results = pd.read_csv("outputs/results_noise.csv")
     make_ood_plot(results)
     # Make inference time plot
-    sdae_models = [sdae_threshold_name, sdae_noise_name]
-    if sdae_name:
-        sdae_models.append(sdae_name)
+    sdae_models = [
+        filename
+        for filename in itertools.chain.from_iterable(
+            [sdae_threshold_names, sdae_noise_names]
+        )
+    ]
+    if sdae_names:
+        sdae_models.extend(sdae_names)
     collate_results_to_file(sdae_models, output_filename="results_inferencetime")
     results = pd.read_csv("outputs/results_inferencetime.csv")
     make_inferencetime_plot(results)
+    # Make performance table
+    collate_results_to_file(
+        [
+            filename
+            for filename in itertools.chain.from_iterable([dae_names, sdae_names])
+        ],
+        output_filename="results",
+    )
+    results = pd.read_csv("outputs/results.csv")
+    make_performance_table(results)
 
 
 if __name__ == "__main__":
     post_process(
-        "DAE-THRESHOLD-08-01",
-        "DAE-NOISE-08-01",
-        "SDAE-THRESHOLD-08-01",
-        "SDAE-NOISE-08-01",
-        "SDAE",
+        ["DAE", "DAE-BIGRUN"],
+        ["DAE-THRESHOLD"],
+        ["DAE-NOISE"],
+        ["SDAE-THRESHOLD-512-128"],
+        ["SDAE-NOISE-512-128"],
+        ["SDAE-256-128", "SDAE-512-128", "SDAE-512-256"],
     )
