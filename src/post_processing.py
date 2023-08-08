@@ -15,6 +15,28 @@ import pandas as pd
 from config import get_output_dir
 
 
+def translate_rfi(xticks: list):
+    outputs = []
+    for label in xticks:
+        if label == "rfi_stations":
+            outputs.append("Narrow-band Burst")
+        if label == "rfi_scatter":
+            outputs.append("Blips")
+        if label == "rfi_impulse":
+            outputs.append("Broad-band Transient")
+        if label == "rfi_dtv":
+            outputs.append("Broad-band Continuous")
+    return outputs
+
+
+def model_to_label(model: str):
+    out = model.replace("SDAE", "SNLN")
+    out = out.replace("DAE", "NLN")
+    out = out.replace("-NOISE", "")
+    out = out.replace("-THRESHOLD", "")
+    return out
+
+
 def write_csv_output_from_dict(
     outputdir: str, filename: str, data: list, headers: list
 ):
@@ -100,25 +122,25 @@ def make_threshold_plot(dframe: pd.DataFrame):
             xvals + width / 2 * i,
             model_results["auroc"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[1].bar(
             xvals + width / 2 * i,
             model_results["auprc"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[2].bar(
             xvals + width / 2 * i,
             model_results["f1"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         i = -i
-    axes[1].legend()
+    axes[2].legend(loc="upper right", framealpha=1, bbox_to_anchor=(1.0, 1.15))
     axes[0].set_ylabel("AUROC")
     axes[1].set_ylabel("AUPRC")
     axes[2].set_ylabel("F1")
@@ -154,38 +176,39 @@ def make_ood_plot(dframe: pd.DataFrame):
                     "f1": ["mean", "std"],
                 }
             )
-            .sort_values("excluded_rfi")
         )
         axes[0].bar(
             index + width / 2 * i,
             model_results["auroc"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[1].bar(
             index + width / 2 * i,
             model_results["auprc"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["auprc"]["std"],
         )
         axes[2].bar(
             index + width / 2 * i,
             model_results["f1"]["mean"],
             width=width,
-            label=model,
+            label=model_to_label(model),
             yerr=model_results["f1"]["std"],
         )
         i = -i
 
-    axes[0].legend()
+    axes[0].legend(loc="upper right", framealpha=1, bbox_to_anchor=(1.0, 1.25))
     axes[0].set_ylabel("AUROC")
     axes[1].set_ylabel("AUPRC")
     axes[2].set_ylabel("F1")
     axes[2].set_xlabel("Excluded RFI")
     axes[2].set_xticks(index)
-    axes[2].set_xticklabels(sub_results["excluded_rfi"].unique())
+    axes[2].set_xticklabels(
+        translate_rfi(sub_results["excluded_rfi"].unique()), rotation=20
+    )
     plt.savefig(os.path.join(get_output_dir(), "ood_plot.png"), dpi=300)
     plt.close("all")
 
@@ -329,6 +352,6 @@ if __name__ == "__main__":
         ["DAE-THRESHOLD"],
         ["DAE-NOISE"],
         ["SDAE-THRESHOLD-512-128"],
-        ["SDAE-NOISE-512-128"],
+        ["SDAE-NOISE-256-128"],
         ["SDAE-256-128", "SDAE-512-128", "SDAE-512-256"],
     )
