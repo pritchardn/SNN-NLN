@@ -21,7 +21,7 @@ from data import load_data, process_into_dataset, reconstruct_patches
 from evaluation import infer, nln, nln_errors
 from utils import load_config
 
-CMAP = "inferno"
+CMAP = "viridis"
 
 
 def plot_image_patches(images, i, output_dir, filename_prefix):
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     inference_cum_sum_recon = reconstruct_snn_inference(inference_cum_sum, 512, 32)
     inference = np.moveaxis(inference, 3, -1)
     inference_cum_sum = np.moveaxis(inference_cum_sum, 3, -1)
-    inference_recon = np.moveaxis(inference_recon, 2, -1)
+    inference_recon_images = np.moveaxis(inference_recon, 2, -1)
 
     print("Plotting SNLN Inference")
     for i in tqdm(range(10)):
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         os.makedirs(plot_dir, exist_ok=True)
         plot_inference_patch(inference, i, plot_dir, "snn_inference_patch")
         plot_inference_patch(inference_cum_sum, i, plot_dir, "snn_inference_patch_sum")
-        plot_inference_recon(inference_recon, i, plot_dir, "inference_recon")
+        plot_inference_recon(inference_recon_images, i, plot_dir, "inference_recon")
         plot_image_patches(snln_error_recon, i, plot_dir, "snln_error_recon")
         plot_image_patches(
             snln_error_recon_binarized, i, plot_dir, "snln_error_recon_binarized"
