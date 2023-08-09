@@ -11,6 +11,7 @@ from matplotlib import animation
 from ann2snn import load_ann_model, convert_to_snn, infer_snn, reconstruct_snn_inference
 from config import DEVICE
 from data import load_data, process_into_dataset, reconstruct_patches
+from evaluation import infer
 from utils import load_config
 
 CMAP = "inferno"
@@ -129,9 +130,11 @@ if __name__ == "__main__":
         latent = model.encoder(image_batch).cpu().detach().numpy()
         image_batch = image_batch.cpu().detach().numpy()
         break
+    predictions = infer(model, test_dataset, 32)
     image_reconstructions = reconstruct_patches(
         test_dataset.dataset[:2560][0].cpu().detach().numpy(), 512, 32
     )
+    output_recon = reconstruct_patches(predictions[:2560], 512, 32)
 
     # Plot inputs
     output_dir = os.path.join("outputs", "examples", "nln_inputs")
@@ -151,6 +154,7 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     for i in range(10):
         plot_image_patches(predictions, i, output_dir, "nln_output")
+        plot_image_patches(output_recon, i, output_dir, "nln_output_recon")
 
     # Get SNN Model
     output_dir = os.path.join("outputs", "examples", "snln_inference")
