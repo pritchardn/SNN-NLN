@@ -197,14 +197,17 @@ def load_ann_model(input_dir: str, config_vals: dict):
     return model
 
 
-def snln(x_hat, test_dataset, average_n):
+def snln(x_hat, test_dataset, average_n, limit=None):
     """
     Spiking NLN by averaging over last n timesteps.
     """
     x_hat_trimmed = x_hat[:, -average_n:, :, :, :, :]
     sum_x_hat = np.vstack(np.sum(x_hat_trimmed, axis=1))
     sum_x_hat = scale_image(sum_x_hat)
-    images = test_dataset.dataset[:][0].cpu().detach().numpy()
+    if limit:
+        images = test_dataset.dataset[:limit][0].cpu().detach().numpy()
+    else:
+        images = test_dataset.dataset[:][0].cpu().detach().numpy()
     error = images - sum_x_hat
     return error
 
