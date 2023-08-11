@@ -142,7 +142,7 @@ if __name__ == "__main__":
         shuffle=False,
         get_orig=True,
     )
-    train_dataset, _ = process_into_dataset(
+    train_dataset, train_masks_original = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,
-        get_orig=False,
+        get_orig=True,
     )
     # Run inference and get data
     image_batch, predictions, latent = None, None, None
@@ -165,7 +165,24 @@ if __name__ == "__main__":
     image_reconstructions = reconstruct_patches(
         test_dataset.dataset[:2560][0].cpu().detach().numpy(), 512, 32
     )
+    test_mask_reconstruction = reconstruct_patches(
+        test_dataset.dataset[:2560][1].cpu().detach().numpy(), 512, 32
+    )
+
     output_recon = reconstruct_patches(predictions[:2560], 512, 32)
+
+    image_batch_train, predictions_train, latent_train = None, None, None
+    for image_batch_train, _ in train_dataset:
+        image_batch_train = image_batch_train.to(DEVICE)
+        predictions_train = model(image_batch_train).cpu().detach().numpy()
+        latent_train = model.encoder(image_batch_train).cpu().detach().numpy()
+        image_batch_train = image_batch_train.cpu().detach().numpy()
+        break
+    train_predictions = infer(model, train_dataset, 32)
+    train_image_reconstructions = reconstruct_patches(
+        train_dataset.dataset[:2560][0].cpu().detach().numpy(), 512, 32
+    )
+    train_output_recon = reconstruct_patches(train_predictions[:2560], 512, 32)
 
     # Get NLN error
     z_train = infer(model.encoder, train_dataset, 32, True)
@@ -186,6 +203,8 @@ if __name__ == "__main__":
     for i in range(10):
         plot_image_patches(image_batch, i, output_dir, "nln_input")
         plot_image_patches(image_reconstructions, i, output_dir, "nln_input_recon")
+        plot_image_patches(image_batch_train, i, output_dir, "nln_input_train")
+        plot_image_patches(np.moveaxis(train_x, -1, 1), i, output_dir, "nln_train_orig")
 
     # Plot latent
     output_dir = os.path.join("outputs", "examples", "nln_latent")
@@ -198,14 +217,21 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     for i in range(10):
         plot_image_patches(predictions, i, output_dir, "nln_output")
+        plot_image_patches(train_predictions, i, output_dir, "nln_train_output")
         plot_image_patches(output_recon, i, output_dir, "nln_output_recon")
+        plot_image_patches(train_output_recon, i, output_dir, "nln_train_output_recon")
     # Plot masks
     output_dir = os.path.join("outputs", "examples", "nln_masks")
     os.makedirs(output_dir, exist_ok=True)
     for i in range(10):
         plot_image_patches(test_masks_original, i, output_dir, "nln_mask")
+        plot_image_patches(
+            np.moveaxis(train_y, -1, 1), i, output_dir, "nln_train_mask_orig"
+        )
+        plot_image_patches(
+            np.moveaxis(test_y, -1, 1), i, output_dir, "nln_test_mask_recon"
+        )
         plot_image_patches(nln_error_recon, i, output_dir, "nln_masks_recon")
-
     # Get SNN Model
     output_dir = os.path.join("outputs", "examples", "snln_inference")
     os.makedirs(output_dir, exist_ok=True)
