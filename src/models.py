@@ -1,106 +1,143 @@
-from collections import OrderedDict
-import torch.nn as nn
+"""
+Contains model definitions for the project.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
+
+from torch import nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, num_layers: int, latent_dimension: int, num_filters: int):
-        super().__init__()
-        layers = []
-        for n in range(num_layers):
-            in_size = 1 if n == 0 else (num_layers - n + 1) * num_filters
-            out_size = (num_layers - n) * num_filters
-            layers.append((f"conv_{n}", nn.Conv2d(in_size, out_size, 3, 2)))
-            layers.append(("relu_{}".format(n), nn.ReLU()))
-            layers.append(("batch_norm_{}".format(n), nn.BatchNorm2d(out_size)))
-            layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
-        self.cnn = nn.Sequential(OrderedDict(layers))
-        self.flatten = nn.Flatten()
-        self.linear = nn.LazyLinear(latent_dimension)
-        # self.dense_act = nn.ReLU()
+    """
+    Encoder for the autoencoder.
+    5 layer CNN with linear layer at the end.
+    """
 
-    def forward(self, x):
-        x = self.cnn(x)
-        x = self.flatten(x)
-        x = self.linear(x)
-        # x = self.dense_act(x)
-        return x
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(
+                num_input_channels, base_channels, kernel_size=3, padding=1, stride=2
+            ),
+            nn.ReLU(),
+            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
+            ),
+            nn.ReLU(),
+            nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
+            ),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(base_channels * 2 * 16, latent_dimension),
+        )
+
+    def forward(self, input_data):
+        """
+        Forward pass for the encoder.
+        """
+        return self.net(input_data)
 
 
 class Decoder(nn.Module):
+    """
+    Decoder for the autoencoder.
+    Linear layer, followed by 5 layer CNN. Output is sigmoid otherwise ReLU is used.
+    """
+
     def __init__(
-        self,
-        input_shape: tuple,
-        num_layers: int,
-        num_filters: int,
-        latent_dimension: int,
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
     ):
         super().__init__()
-        self.num_filters = num_filters
-        self.in_dim = input_shape[-1] // (2 ** num_layers) - 1
-        self.linear = nn.Linear(
-            latent_dimension, self.in_dim * self.in_dim * num_filters
+        self.linear = nn.Sequential(
+            nn.Linear(latent_dimension, 2 * 16 * base_channels),
+            nn.ReLU(),
         )
-        self.relu = nn.ReLU()
-        layers = []
-        for n in range(num_layers - 1):
-            layers.append(
-                (
-                    "conv_{}".format(n),
-                    nn.ConvTranspose2d(
-                        (n + 1) * num_filters, (n + 2) * num_filters, 3, 2
-                    ),
-                )
-            )
-            layers.append(("relu_{}".format(n), nn.ReLU()))
-            layers.append(
-                ("batch_norm_{}".format(n), nn.BatchNorm2d((n + 2) * num_filters))
-            )
-            layers.append(("dropout_{}".format(n), nn.Dropout(0.05)))
-        self.cnn = nn.Sequential(OrderedDict(layers))
-        self.cnn_output = nn.ConvTranspose2d(
-            num_layers * num_filters, 1, 3, 2, output_padding=1
+        self.net = nn.Sequential(
+            nn.ConvTranspose2d(
+                2 * base_channels, 2 * base_channels, 3, 2, padding=1, output_padding=1
+            ),
+            nn.ReLU(),
+            nn.Conv2d(base_channels * 2, base_channels * 2, 3, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(
+                2 * base_channels,
+                base_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),
+            nn.ReLU(),
+            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(
+                base_channels,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),
+            nn.Sigmoid(),
         )
-        self.sigmoid_out = nn.Sigmoid()
 
-    def forward(self, x):
-        x = self.linear(x)
-        x = self.relu(x)
-        x = x.view(-1, self.num_filters, self.in_dim, self.in_dim)
-        x = self.cnn(x)
-        x = self.cnn_output(x)
-        x = self.sigmoid_out(x)
-        return x
+    def forward(self, input_data):
+        """
+        Forward pass for the decoder.
+        """
+        input_data = self.linear(input_data)
+        reshaped = input_data.view(input_data.shape[0], -1, 4, 4)
+        reconstruction = self.net(reshaped)
+        return reconstruction
 
 
-class Autoencoder(nn.Module):
+class AutoEncoder(nn.Module):
+    """
+    Autoencoder model comprised of an encoder and decoder defined here.
+    """
+
     def __init__(
-        self,
-        num_layers: int,
-        latent_dimension: int,
-        num_filters: int,
-        input_shape: tuple,
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
     ):
         super().__init__()
-        self.encoder = Encoder(num_layers, latent_dimension, num_filters)
-        self.decoder = Decoder(input_shape, num_layers, num_filters, latent_dimension)
+        self.encoder = Encoder(num_input_channels, base_channels, latent_dimension)
+        self.decoder = Decoder(num_input_channels, base_channels, latent_dimension)
 
-    def forward(self, x):
-        z = self.encoder(x)
-        x_hat = self.decoder(z)
-        return x_hat
+    def forward(self, input_data):
+        """
+        Forward pass for the autoencoder.
+        """
+        latent = self.encoder(input_data)
+        output = self.decoder(latent)
+        return output
 
 
 class Discriminator(nn.Module):
-    def __init__(self, num_layers: int, latent_dimension: int, num_filters: int):
+    """
+    Discriminator model comprised of an encoder and linear layer defined here.
+    """
+
+    def __init__(
+        self, num_input_channels: int, base_channels: int, latent_dimension: int
+    ):
         super().__init__()
-        self.encoder = Encoder(num_layers, latent_dimension, num_filters)
+        self.encoder = Encoder(num_input_channels, base_channels, latent_dimension)
         self.flatten = nn.Flatten()
         self.output = nn.LazyLinear(1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        z = self.encoder(x)
-        classification = self.flatten(z)
+    def forward(self, input_data):
+        """
+        Forward pass for the discriminator.
+        """
+        latent = self.encoder(input_data)
+        classification = self.flatten(latent)
         output = self.output(classification)
         output = self.sigmoid(output)
-        return z, output
+        return latent, output

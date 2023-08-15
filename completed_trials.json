@@ -1,0 +1,14 @@
+[
+    {
+        "latent_dimension": 16,
+        "batch_size": 80,
+        "epochs": 2,
+        "ae_learning_rate": 0.0007270375513881964,
+        "gen_learning_rate": 4.3115743504061516e-05,
+        "disc_learning_rate": 0.00090813754364558,
+        "optimizer": "RMSprop",
+        "num_layers": 3,
+        "num_filters": 32,
+        "neighbours": 13
+    }
+]

@@ -1,15 +1,23 @@
+"""
+Contains code for loading and processing training data.
+Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
+"""
 import copy
 import os
 
 import aoflagger as aof
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
 
+from config import get_data_dir
+
 
 def limit_entries(image_data, masks, limit: int):
+    """
+    Limits the number of entries in the dataset by random selection.
+    """
     if limit is not None:
         indx = np.random.permutation(len(image_data))[:limit]
         image_data = image_data[indx]
@@ -18,6 +26,9 @@ def limit_entries(image_data, masks, limit: int):
 
 
 def clip_data(image_data, masks):
+    """
+    Clips data to within [mean - std, mean + 4*std] and then logs and rescales.
+    """
     _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(
         image_data[np.invert(masks)]
     )
@@ -26,12 +37,17 @@ def clip_data(image_data, masks):
     )
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
-    mi, ma = np.min(image_data), np.max(image_data)
-    image_data = (image_data - mi) / (ma - mi)
+    # Rescale
+    minimum, maximum = np.min(image_data), np.max(image_data)
+    image_data = (image_data - minimum) / (maximum - minimum)
     return image_data
 
 
 def flag_data(image_data, threshold: int = None, mode="HERA"):
+    """
+    Flags data using AOFlagger. Selects strategy file based on dataset mode.
+    Supports 'HERA' and 'LOFAR' modes.
+    """
     mask = None
     if threshold is not None:
         mask = np.empty(image_data[..., 0].shape, dtype=bool)
@@ -40,11 +56,11 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         strategy = None
         if mode == "HERA":
             strategy = aoflagger.load_strategy_file(
-                f"data{os.sep}flagging{os.sep}hera_{threshold}.lua"
+                f"{get_data_dir()}{os.sep}flagging{os.sep}hera_{threshold}.lua"
             )
         elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
-                f"data{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+                f"{get_data_dir()}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
             )
         if not strategy:
             return None
@@ -61,65 +77,78 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
     return mask
 
 
-def extract_patches(x: torch.Tensor, kernel_size: int, stride: int, batch_size):
-    b, c, h, w = x.shape
-    scaling_factor = (h // kernel_size) ** 2
-    input_start, input_end = 0, batch_size
-    output_start, output_end = 0, batch_size * scaling_factor
-    output = torch.Tensor(b * scaling_factor, c, kernel_size, kernel_size)
+def extract_patches(data: torch.Tensor, kernel_size: int, stride: int):
+    """
+    Extracts patches from a tensor. Implements the same functionality as found in tensorflow.
+    """
+    _, channels, _, _ = data.shape
     # Extract patches
-    patches = x.unfold(2, kernel_size, stride).unfold(3, kernel_size, stride)
-    patches = patches.permute(0, 2, 3, 1, 4, 5).reshape(-1, c, kernel_size, kernel_size)
-
+    patches = data.unfold(2, kernel_size, stride).unfold(3, kernel_size, stride)
+    patches = patches.permute(0, 2, 3, 1, 4, 5).reshape(
+        -1, channels, kernel_size, kernel_size
+    )
     return patches
-    # return output
 
 
 def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
-    t = images.transpose(0, 3, 2, 1)
+    """
+    Reconstructs patches into images. Implements the same functionality as found in tensorflow.
+    Transposes the images to match the tensorflow implementation but returns the images in the
+    original format.
+    """
+    transposed = images.transpose(0, 3, 2, 1)
     n_patches = original_size // kernel_size
     recon = np.empty(
         [
-            images.shape[0] // n_patches ** 2,
+            images.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             images.shape[1],
         ]
     )
 
-    start, counter, indx, b = 0, 0, 0, []
+    start, counter, indx, batch = 0, 0, 0, []
 
     for i in range(n_patches, images.shape[0] + 1, n_patches):
-        b.append(
+        batch.append(
             np.reshape(
-                np.stack(t[start:i, ...], axis=0),
+                np.stack(transposed[start:i, ...], axis=0),
                 (n_patches * kernel_size, kernel_size, images.shape[1]),
             )
         )
         start = i
         counter += 1
         if counter == n_patches:
-            recon[indx, ...] = np.hstack(b)
+            recon[indx, ...] = np.hstack(batch)
             indx += 1
-            counter, b = 0, []
+            counter, batch = 0, []
 
     return recon.transpose(0, 3, 2, 1)
 
 
 def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_size: int):
+    """
+    Reconstructs patches into images. Assumes that the images are square and single channel.
+    """
     n_patches = original_size // patch_size
-    recon = np.empty([images.shape[0] // n_patches ** 2, n_patches ** 2])
+    recon = np.empty([images.shape[0] // n_patches**2, n_patches**2])
 
-    start, end, labels_recon = 0, n_patches ** 2, []
+    start, end = 0, n_patches**2
 
-    for j, i in enumerate(range(0, images.shape[0], n_patches ** 2)):
+    for j, _ in enumerate(range(0, images.shape[0], n_patches**2)):
         recon[j, ...] = images[start:end, ...]
         start = end
-        end += n_patches ** 2
+        end += n_patches**2
     return recon
 
 
-def load_data(excluded_rfi=None, data_path="data"):
+def load_data(excluded_rfi=None, data_path=get_data_dir()):
+    """
+    Loads original data from pickle files.
+    If excluded_rfi is None, training and test data will contain all types of RFI.
+    If excluded_rfi is not None, training data will NOT include RFI of that type but test data
+    will contain all types of RFI.
+    """
     if excluded_rfi is None:
         rfi_models = []
         file_path = os.path.join(data_path, "HERA_04-03-2022_all.pkl")
@@ -151,9 +180,13 @@ def process_into_dataset(
     threshold=None,
     patch_size=None,
     stride=None,
-    filter=False,
+    filter_rfi_patches=False,
     get_orig=False,
 ):
+    """
+    Applies pre-processing steps to the data and returns a torch DataLoader.
+    :param get_orig: If true, input y_data will be returned back, else None.
+    """
     x_data, y_data = limit_entries(x_data, y_data, limit)
     if get_orig:
         y_data_orig = copy.deepcopy(y_data)
@@ -172,12 +205,12 @@ def process_into_dataset(
         y_data_orig = np.moveaxis(y_data_orig, -1, 1)
         y_data_orig = torch.from_numpy(y_data_orig)
     if patch_size is not None and stride is not None:
-        x_data = extract_patches(x_data, patch_size, stride, batch_size)
-        y_data = extract_patches(y_data, patch_size, stride, batch_size)
+        x_data = extract_patches(x_data, patch_size, stride)
+        y_data = extract_patches(y_data, patch_size, stride)
         if get_orig:
-            y_data_orig = extract_patches(y_data_orig, patch_size, stride, batch_size)
+            y_data_orig = extract_patches(y_data_orig, patch_size, stride)
             y_data_orig = y_data_orig.cpu().detach().numpy()
-    if filter:
+    if filter_rfi_patches:
         # I Hate this back and forwards, but hindsight is 20/20
         x_data = x_data.numpy()
         y_data = y_data.numpy()

@@ -1,13 +1,31 @@
 # SNN-NLN
 An SNN implementation of the NLN architecture for RFI detection.
-Based on [this work](https://github.com/mesarcik/RFI-NLN).
 
-The files in src/learning include a variety of scripts to play with tooling speicifcally.
+Contains:
+ - A PyTorch re-implementation of [this work](https://github.com/mesarcik/RFI-NLN) with 
+updated auto-encoder architecture
+ - Code to convert trained ANN models to SNNs using 
+[SpikingJelly](https://pypi.org/project/spikingjelly/)
+ - Implementation of the Spiking NLN (SNLN)
 
-## Getting Cuda in Shape
-``sudo update-alternatives --display cuda
-sudo update-alternatives --config cuda``
+All code files are in `src/`. Replicating all results can be achieved by running replicate.py
 
-## The installation steps I took
-- ``conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia``
-- 
+## Installation
+```
+conda create -n snn-nln python=3.10
+conda activate snn-nln
+pip install -r src/requirements.txt
+```
+You may need extra instructions for installing PyTorch with Cuda / Rocm support.
+
+### Data Dependencies
+The data used in this project is not included in this repository.
+You will need to download the datasets from [zenodo](https://zenodo.org/record/6724065) and unzip
+them into `/data`.
+
+### Dependencies
+AOFlagger is also required. Installation instructions can be found 
+[here](https://aoflagger.readthedocs.io/en/latest/).
+
+## Licensing
+This code is licensed under the MIT License. See LICENSE for more details.
