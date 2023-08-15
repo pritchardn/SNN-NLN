@@ -217,10 +217,7 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     """
     Makes a plot of inference time results. Only for SDAE.
     """
-    pandas_filter = (
-        (dframe.excluded_rfi.isna())
-        & (dframe.threshold == 10)
-    )
+    pandas_filter = (dframe.excluded_rfi.isna()) & (dframe.threshold == 10)
     sub_results = dframe[pandas_filter]
     print(len(sub_results))
     _, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
@@ -230,11 +227,12 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     for time_length in sub_results["time_length"].unique():
         inference_results = sub_results[sub_results["time_length"] == time_length]
         inference_results = inference_results.groupby("average_n").agg(
-                {
-                    "auroc": ["mean", "std"],
-                    "auprc": ["mean", "std"],
-                    "f1": ["mean", "std"],
-                })
+            {
+                "auroc": ["mean", "std"],
+                "auprc": ["mean", "std"],
+                "f1": ["mean", "std"],
+            }
+        )
         axes[0].bar(
             index + width / 2 * i,
             inference_results["auroc"]["mean"],
