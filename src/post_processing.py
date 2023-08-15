@@ -218,35 +218,41 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     Makes a plot of inference time results. Only for SDAE.
     """
     pandas_filter = (
-        (dframe.model_type == "SDAE")
-        & (dframe.excluded_rfi.isna())
+        (dframe.excluded_rfi.isna())
         & (dframe.threshold == 10)
     )
     sub_results = dframe[pandas_filter]
     print(len(sub_results))
     _, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
-    width = 0.5  # 1/len(sub_results["average_n"].unique())
+    width = 0.25  # 1/len(sub_results["average_n"].unique())
     i = -1
+    index = np.arange(len(sub_results["average_n"].unique()))
     for time_length in sub_results["time_length"].unique():
         inference_results = sub_results[sub_results["time_length"] == time_length]
-        inference_results = inference_results.groupby("average_n").mean(
-            "auroc", "auprc", "f1"
-        )
+        inference_results = inference_results.groupby("average_n").agg(
+                {
+                    "auroc": ["mean", "std"],
+                    "auprc": ["mean", "std"],
+                    "f1": ["mean", "std"],
+                })
         axes[0].bar(
-            inference_results.index + width / 2 * i,
-            inference_results["auroc"],
+            index + width / 2 * i,
+            inference_results["auroc"]["mean"],
+            yerr=inference_results["auroc"]["std"],
             width=width,
             label=time_length,
         )
         axes[1].bar(
-            inference_results.index + width / 2 * i,
-            inference_results["auprc"],
+            index + width / 2 * i,
+            inference_results["auprc"]["mean"],
+            yerr=inference_results["auprc"]["std"],
             width=width,
             label=time_length,
         )
         axes[2].bar(
-            inference_results.index + width / 2 * i,
-            inference_results["f1"],
+            index + width / 2 * i,
+            inference_results["f1"]["mean"],
+            yerr=inference_results["f1"]["std"],
             width=width,
             label=time_length,
         )
@@ -256,7 +262,8 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
     axes[1].set_ylabel("AUPRC")
     axes[2].set_ylabel("F1")
     axes[2].set_xlabel("Slice Length")
-    axes[2].set_xticks(sub_results["average_n"].unique())
+    axes[2].set_xticks(index)
+    axes[2].set_xticklabels(sub_results["average_n"].unique())
     plt.savefig(os.path.join(get_output_dir(), "inferencetime_plot.png"), dpi=300)
     plt.close("all")
 
@@ -323,12 +330,7 @@ def post_process(
     results = pd.read_csv("outputs/results_noise.csv")
     make_ood_plot(results)
     # Make inference time plot
-    sdae_models = [
-        filename
-        for filename in itertools.chain.from_iterable(
-            [sdae_threshold_names, sdae_noise_names]
-        )
-    ]
+    sdae_models = []
     if sdae_names:
         sdae_models.extend(sdae_names)
     collate_results_to_file(sdae_models, output_filename="results_inferencetime")
@@ -348,10 +350,10 @@ def post_process(
 
 if __name__ == "__main__":
     post_process(
-        ["DAE", "DAE-BIGRUN"],
+        ["DAE"],
         ["DAE-THRESHOLD"],
         ["DAE-NOISE"],
         ["SDAE-THRESHOLD-512-128"],
-        ["SDAE-NOISE-256-128"],
+        ["SDAE-NOISE-512-128"],
         ["SDAE-256-128", "SDAE-512-128", "SDAE-512-256"],
     )
