@@ -1,6 +1,10 @@
 # SNN-NLN
 An SNN implementation of the NLN architecture for RFI detection.
 
+
+[![DOI](https://zenodo.org/badge/633437547.svg)](https://zenodo.org/badge/latestdoi/633437547)
+
+
 Contains:
  - A PyTorch re-implementation of [this work](https://github.com/mesarcik/RFI-NLN) with 
 updated auto-encoder architecture
