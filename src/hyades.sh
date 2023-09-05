@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=32GB
+#SBATCH --mem=256GB
 #SBATCH --time=0:15:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
