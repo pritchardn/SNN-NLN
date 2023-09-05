@@ -17,7 +17,7 @@ from ann2snn import (
     snln,
 )
 from config import DEVICE
-from data import load_data, process_into_dataset, reconstruct_patches
+from data import load_hera_data, process_into_dataset, reconstruct_patches
 from evaluation import infer, nln, nln_errors
 from utils import load_config
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     model = load_ann_model(model_dir, config_vals)
     model.to(DEVICE)
     # Get NLN Data
-    train_x, train_y, test_x, test_y, _ = load_data()
+    train_x, train_y, test_x, test_y, _ = load_hera_data()
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
         test_y,

@@ -20,7 +20,7 @@ from tqdm import tqdm
 import config
 from config import get_output_dir
 from data import (
-    load_data,
+    load_hera_data,
     process_into_dataset,
     reconstruct_latent_patches,
     reconstruct_patches,
@@ -167,7 +167,7 @@ def load_test_dataset(config_vals: dict):
     """
     Loads the test dataset.
     """
-    _, _, test_x, test_y, _ = load_data()
+    _, _, test_x, test_y, _ = load_hera_data()
     test_dataset, y_data_orig = process_into_dataset(
         test_x,
         test_y,

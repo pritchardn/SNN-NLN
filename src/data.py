@@ -142,7 +142,7 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     return recon
 
 
-def load_data(excluded_rfi=None, data_path=get_data_dir()):
+def load_hera_data(excluded_rfi=None, data_path=get_data_dir()):
     """
     Loads original data from pickle files.
     If excluded_rfi is None, training and test data will contain all types of RFI.
