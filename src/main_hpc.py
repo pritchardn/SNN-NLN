@@ -19,7 +19,9 @@ def main_hpc():
     task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID"))
     task_type = os.environ.get("TASK_TYPE")
     num_trials = int(os.environ.get("NUM_TRIALS"))
+    dataset = os.environ.get("DATASET")
     config_vals = config.STANDARD_PARAMS
+    config_vals["dataset"] = dataset
     if task_type == "NOISE":
         rfi_exclusion_vals = [
             None,

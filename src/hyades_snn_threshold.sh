@@ -21,6 +21,7 @@ export MODEL_TYPE="DAE-THRESHOLD"
 export OUTPUT_DIR="/scratch/npritchard/outputs"
 export DATA_DIR="/scratch/npritchard/data"
 export INPUT_DIR="/scratch/npritchard/data"
+export DATASET = "HERA"
 export TIME_LENGTH=256
 export AVERAGE_N=128
 

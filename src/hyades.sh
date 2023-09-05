@@ -20,5 +20,6 @@ export TASK_TYPE="STANDARD"
 export OUTPUT_DIR="/scratch/npritchard/outputs"
 export DATA_DIR="/scratch/npritchard/data"
 export INPUT_DIR="/scratch/npritchard/data"
+export DATASET = "HERA"
 
 python3 main_hpc.py
