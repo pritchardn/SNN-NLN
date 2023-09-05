@@ -20,7 +20,7 @@ from tqdm import tqdm
 import config
 from config import get_output_dir
 from data import (
-    load_hera_data,
+    load_data,
     process_into_dataset,
     reconstruct_latent_patches,
     reconstruct_patches,
@@ -167,13 +167,15 @@ def load_test_dataset(config_vals: dict):
     """
     Loads the test dataset.
     """
-    _, _, test_x, test_y, _ = load_hera_data()
+    _, _, test_x, test_y, _ = load_data(config_vals)
     test_dataset, y_data_orig = process_into_dataset(
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
-        threshold=config_vals["threshold"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,

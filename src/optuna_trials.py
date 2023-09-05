@@ -10,7 +10,7 @@ import torch
 from optuna.trial import TrialState
 
 from config import DEVICE, get_output_dir
-from data import process_into_dataset, load_hera_data
+from data import process_into_dataset, load_data
 from evaluation import evaluate_model
 from plotting import plot_loss_history
 from main import train_model
@@ -53,15 +53,15 @@ def run_trial(trial: optuna.Trial):
         f'./{get_output_dir()}/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
-    train_x, train_y, test_x, test_y, _ = load_hera_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,

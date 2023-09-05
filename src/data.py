@@ -4,6 +4,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
 import copy
 import os
+import pickle
 
 import aoflagger as aof
 import numpy as np
@@ -168,6 +169,27 @@ def load_hera_data(excluded_rfi=None, data_path=get_data_dir()):
     test_x = test_x.astype("float32")
     train_x = train_x.astype("float32")
     return train_x, train_y, test_x, test_y, rfi_models
+
+
+def load_lofar_data(data_path=get_data_dir()):
+    filepath = os.path.join(data_path, "LOFAR_Full_RFI_dataset.pkl")
+    print(f"Loading LOFAR data from {filepath}")
+    with open(filepath, "rb") as f:
+        train_x, train_y, test_x, test_y = pickle.load(f)
+        return train_x, train_y, test_x, test_y, []
+
+
+def load_data(config_vals, data_path=get_data_dir()):
+    """
+    Loads data from pickle files.
+    """
+    dataset = config_vals["dataset"]
+    if dataset == "HERA":
+        return load_hera_data(config_vals["excluded_rfi"], data_path=data_path)
+    elif dataset == "LOFAR":
+        return load_lofar_data(data_path=data_path)
+    else:
+        raise ValueError(f"Dataset {dataset} not supported.")
 
 
 def process_into_dataset(

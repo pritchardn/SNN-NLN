@@ -10,7 +10,7 @@ import torch
 
 from torchsummary import summary
 from config import DEVICE, STANDARD_PARAMS, get_output_dir
-from data import load_hera_data, process_into_dataset
+from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
@@ -165,14 +165,12 @@ def main(config_vals: dict):
         config_vals["anomaly_type"],
         config_vals["model_name"],
     )
-    train_x, train_y, test_x, test_y, _ = load_hera_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -183,8 +181,10 @@ def main(config_vals: dict):
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,
@@ -240,7 +240,7 @@ def main(config_vals: dict):
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -325,14 +325,12 @@ def rerun_evaluation(input_dir):
     ) as config_file:
         config_vals = json.load(config_file)
 
-    train_x, train_y, test_x, test_y, _ = load_hera_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -343,8 +341,10 @@ def rerun_evaluation(input_dir):
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,
