@@ -40,7 +40,7 @@ def run_trial(trial: optuna.Trial):
         "patch_stride": 32,
         "threshold": 10,
         "anomaly_type": "MISO",
-        "dataset": "HERA",
+        "dataset": "LOFAR",
         "model_type": "DAE",
         "excluded_rfi": None,
         "time_length": None,
