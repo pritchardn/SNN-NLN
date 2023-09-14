@@ -32,7 +32,7 @@ def plot_intermediate_images(
         predictions = auto_encoder(image_batch).cpu().detach().numpy()
         image_batch = image_batch.cpu().detach().numpy()
         images = np.concatenate((image_batch, predictions), axis=0)
-        side_length = int(math.sqrt(batch_size))
+        side_length = int(math.ceil(math.sqrt(batch_size)))
         fig = plt.figure(figsize=(side_length, side_length * 2))
         grid = ImageGrid(
             fig,
