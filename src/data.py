@@ -26,15 +26,21 @@ def limit_entries(image_data, masks, limit: int):
     return image_data, masks
 
 
-def clip_data(image_data, masks):
+def clip_data(image_data, masks, mode="HERA"):
     """
     Clips data to within [mean - std, mean + 4*std] and then logs and rescales.
     """
-    _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(
+    if mode == "HERA":
+        max_threshold = 4
+        min_threshold = 1
+    else:
+        max_threshold = 95
+        min_threshold = 3
+    _max = np.mean(image_data[np.invert(masks)]) + max_threshold * np.std(
         image_data[np.invert(masks)]
     )
     _min = np.absolute(
-        np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)])
+        np.mean(image_data[np.invert(masks)]) - min_threshold * np.std(image_data[np.invert(masks)])
     )
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
@@ -217,7 +223,7 @@ def process_into_dataset(
     masks = flag_data(x_data, threshold, mode)
     if masks is not None:
         y_data = np.expand_dims(masks, axis=-1)
-    x_data = clip_data(x_data, y_data)
+    x_data = clip_data(x_data, y_data, mode)
     y_data = y_data.astype(bool)
     x_data = np.moveaxis(x_data, -1, 1)
     y_data = np.moveaxis(y_data, -1, 1)
