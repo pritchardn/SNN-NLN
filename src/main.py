@@ -9,6 +9,8 @@ import optuna
 import torch
 
 from torchsummary import summary
+from tqdm import tqdm
+
 from config import DEVICE, STANDARD_PARAMS, get_output_dir
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
@@ -83,7 +85,7 @@ def train_model(
         running_ae_loss = 0.0
         running_disc_loss = 0.0
         running_gen_loss = 0.0
-        for x_images, y_masks in train_dataset:
+        for x_images, y_masks in tqdm(train_dataset):
             x_images, y_masks = x_images.to(DEVICE), y_masks.to(DEVICE)
 
             ae_loss_val, disc_loss, gen_loss = train_step(
@@ -303,6 +305,8 @@ def main_standard():
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     config_vals = STANDARD_PARAMS
+    config_vals["dataset"] = "LOFAR"
+    # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
