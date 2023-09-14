@@ -40,7 +40,8 @@ def clip_data(image_data, masks, mode="HERA"):
         image_data[np.invert(masks)]
     )
     _min = np.absolute(
-        np.mean(image_data[np.invert(masks)]) - min_threshold * np.std(image_data[np.invert(masks)])
+        np.mean(image_data[np.invert(masks)])
+        - min_threshold * np.std(image_data[np.invert(masks)])
     )
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)

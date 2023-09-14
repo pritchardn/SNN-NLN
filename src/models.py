@@ -18,13 +18,19 @@ class Encoder(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Conv2d(
-                num_input_channels, 2 * base_channels, kernel_size=3, stride=2, padding=1,
+                num_input_channels,
+                2 * base_channels,
+                kernel_size=3,
+                stride=2,
+                padding=1,
             ),
             nn.ReLU(),
-            nn.Conv2d(2 * base_channels, base_channels, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(
+                2 * base_channels, base_channels, kernel_size=3, stride=2, padding=1
+            ),
             nn.ReLU(),
             nn.Flatten(),
-            nn.LazyLinear(latent_dimension)
+            nn.LazyLinear(latent_dimension),
         )
 
     def forward(self, input_data):
@@ -49,7 +55,9 @@ class Decoder(nn.Module):
             nn.ReLU(),
         )
         self.net = nn.Sequential(
-            nn.LazyConvTranspose2d(base_channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.LazyConvTranspose2d(
+                base_channels, kernel_size=3, stride=2, padding=1, output_padding=1
+            ),
             nn.ReLU(),
             nn.LazyConvTranspose2d(num_input_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
