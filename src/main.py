@@ -9,6 +9,8 @@ import optuna
 import torch
 
 from torchsummary import summary
+from tqdm import tqdm
+
 from config import DEVICE, STANDARD_PARAMS, get_output_dir
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
@@ -83,7 +85,7 @@ def train_model(
         running_ae_loss = 0.0
         running_disc_loss = 0.0
         running_gen_loss = 0.0
-        for x_images, y_masks in train_dataset:
+        for x_images, y_masks in tqdm(train_dataset):
             x_images, y_masks = x_images.to(DEVICE), y_masks.to(DEVICE)
 
             ae_loss_val, disc_loss, gen_loss = train_step(
@@ -165,14 +167,12 @@ def main(config_vals: dict):
         config_vals["anomaly_type"],
         config_vals["model_name"],
     )
-    train_x, train_y, test_x, test_y, _ = load_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -183,8 +183,10 @@ def main(config_vals: dict):
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,
@@ -240,7 +242,7 @@ def main(config_vals: dict):
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -303,6 +305,8 @@ def main_standard():
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     config_vals = STANDARD_PARAMS
+    config_vals["dataset"] = "LOFAR"
+    # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:
@@ -325,14 +329,12 @@ def rerun_evaluation(input_dir):
     ) as config_file:
         config_vals = json.load(config_file)
 
-    train_x, train_y, test_x, test_y, _ = load_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -343,8 +345,10 @@ def rerun_evaluation(input_dir):
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,

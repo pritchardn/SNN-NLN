@@ -130,13 +130,15 @@ if __name__ == "__main__":
     model = load_ann_model(model_dir, config_vals)
     model.to(DEVICE)
     # Get NLN Data
-    train_x, train_y, test_x, test_y, _ = load_data()
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,
@@ -146,7 +148,7 @@ if __name__ == "__main__":
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],

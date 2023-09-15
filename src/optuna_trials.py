@@ -28,19 +28,19 @@ def run_trial(trial: optuna.Trial):
     config_vals = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
         "epochs": trial.suggest_int("epochs", 2, 128),
-        "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-4, 10e-4),
-        "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-4, 10e-4),
-        "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-4, 10e-4),
+        "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-4, 100e-4),
+        "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-4, 100e-4),
+        "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-4, 100e-4),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
-        "num_layers": 5,
+        "num_layers": 2,
         "latent_dimension": latent_dimension,
-        "num_filters": 16,
+        "num_filters": trial.suggest_categorical("num_filters", [16, 32]),
         "neighbours": trial.suggest_int("neighbours", 1, 25),
         "patch_size": 32,
         "patch_stride": 32,
         "threshold": 10,
         "anomaly_type": "MISO",
-        "dataset": "HERA",
+        "dataset": "LOFAR",
         "model_type": "DAE",
         "excluded_rfi": None,
         "time_length": None,
@@ -53,14 +53,12 @@ def run_trial(trial: optuna.Trial):
         f'./{get_output_dir()}/{config_vals["model_type"]}/{config_vals["anomaly_type"]}/'
         f'{config_vals["model_name"]}/'
     )
-    train_x, train_y, test_x, test_y, _ = load_data(
-        excluded_rfi=config_vals["excluded_rfi"]
-    )
+    train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -71,7 +69,7 @@ def run_trial(trial: optuna.Trial):
         train_x,
         train_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
+        mode=config_vals["dataset"],
         threshold=config_vals["threshold"],
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -82,8 +80,10 @@ def run_trial(trial: optuna.Trial):
         test_x,
         test_y,
         batch_size=config_vals["batch_size"],
-        mode="HERA",
-        threshold=config_vals["threshold"],
+        mode=config_vals["dataset"],
+        threshold=config_vals["threshold"]
+        if config_vals["dataset"] == "HERA"
+        else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
         shuffle=False,

@@ -4,6 +4,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
 import copy
 import os
+import pickle
 
 import aoflagger as aof
 import numpy as np
@@ -25,15 +26,22 @@ def limit_entries(image_data, masks, limit: int):
     return image_data, masks
 
 
-def clip_data(image_data, masks):
+def clip_data(image_data, masks, mode="HERA"):
     """
     Clips data to within [mean - std, mean + 4*std] and then logs and rescales.
     """
-    _max = np.mean(image_data[np.invert(masks)]) + 4 * np.std(
+    if mode == "HERA":
+        max_threshold = 4
+        min_threshold = 1
+    else:
+        max_threshold = 95
+        min_threshold = 3
+    _max = np.mean(image_data[np.invert(masks)]) + max_threshold * np.std(
         image_data[np.invert(masks)]
     )
     _min = np.absolute(
-        np.mean(image_data[np.invert(masks)]) - np.std(image_data[np.invert(masks)])
+        np.mean(image_data[np.invert(masks)])
+        - min_threshold * np.std(image_data[np.invert(masks)])
     )
     image_data = np.clip(image_data, _min, _max)
     image_data = np.log(image_data)
@@ -142,7 +150,7 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     return recon
 
 
-def load_data(excluded_rfi=None, data_path=get_data_dir()):
+def load_hera_data(excluded_rfi=None, data_path=get_data_dir()):
     """
     Loads original data from pickle files.
     If excluded_rfi is None, training and test data will contain all types of RFI.
@@ -170,6 +178,27 @@ def load_data(excluded_rfi=None, data_path=get_data_dir()):
     return train_x, train_y, test_x, test_y, rfi_models
 
 
+def load_lofar_data(data_path=get_data_dir()):
+    filepath = os.path.join(data_path, "LOFAR_Full_RFI_dataset.pkl")
+    print(f"Loading LOFAR data from {filepath}")
+    with open(filepath, "rb") as f:
+        train_x, train_y, test_x, test_y = pickle.load(f)
+        return train_x, train_y, test_x, test_y, []
+
+
+def load_data(config_vals, data_path=get_data_dir()):
+    """
+    Loads data from pickle files.
+    """
+    dataset = config_vals["dataset"]
+    if dataset == "HERA":
+        return load_hera_data(config_vals["excluded_rfi"], data_path=data_path)
+    elif dataset == "LOFAR":
+        return load_lofar_data(data_path=data_path)
+    else:
+        raise ValueError(f"Dataset {dataset} not supported.")
+
+
 def process_into_dataset(
     x_data,
     y_data,
@@ -195,7 +224,7 @@ def process_into_dataset(
     masks = flag_data(x_data, threshold, mode)
     if masks is not None:
         y_data = np.expand_dims(masks, axis=-1)
-    x_data = clip_data(x_data, y_data)
+    x_data = clip_data(x_data, y_data, mode)
     y_data = y_data.astype(bool)
     x_data = np.moveaxis(x_data, -1, 1)
     y_data = np.moveaxis(y_data, -1, 1)

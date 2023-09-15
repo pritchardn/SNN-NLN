@@ -18,23 +18,19 @@ class Encoder(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Conv2d(
-                num_input_channels, base_channels, kernel_size=3, padding=1, stride=2
+                num_input_channels,
+                2 * base_channels,
+                kernel_size=3,
+                stride=2,
+                padding=1,
             ),
             nn.ReLU(),
-            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
             nn.Conv2d(
-                base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
-            ),
-            nn.ReLU(),
-            nn.Conv2d(2 * base_channels, 2 * base_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(
-                2 * base_channels, 2 * base_channels, kernel_size=3, padding=1, stride=2
+                2 * base_channels, base_channels, kernel_size=3, stride=2, padding=1
             ),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(base_channels * 2 * 16, latent_dimension),
+            nn.LazyLinear(latent_dimension),
         )
 
     def forward(self, input_data):
@@ -55,35 +51,15 @@ class Decoder(nn.Module):
     ):
         super().__init__()
         self.linear = nn.Sequential(
-            nn.Linear(latent_dimension, 2 * 16 * base_channels),
+            nn.Linear(latent_dimension, 16 * 16 * base_channels),
             nn.ReLU(),
         )
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(
-                2 * base_channels, 2 * base_channels, 3, 2, padding=1, output_padding=1
+            nn.LazyConvTranspose2d(
+                base_channels, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
             nn.ReLU(),
-            nn.Conv2d(base_channels * 2, base_channels * 2, 3, padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(
-                2 * base_channels,
-                base_channels,
-                kernel_size=3,
-                output_padding=1,
-                padding=1,
-                stride=2,
-            ),
-            nn.ReLU(),
-            nn.Conv2d(base_channels, base_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(
-                base_channels,
-                num_input_channels,
-                kernel_size=3,
-                output_padding=1,
-                padding=1,
-                stride=2,
-            ),
+            nn.LazyConvTranspose2d(num_input_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )
 
@@ -92,7 +68,7 @@ class Decoder(nn.Module):
         Forward pass for the decoder.
         """
         input_data = self.linear(input_data)
-        reshaped = input_data.view(input_data.shape[0], -1, 4, 4)
+        reshaped = input_data.view(input_data.shape[0], -1, 16, 16)
         reconstruction = self.net(reshaped)
         return reconstruction
 

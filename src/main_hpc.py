@@ -6,6 +6,7 @@ import sys
 import config
 from ann2snn import main_snn
 from main import main
+from optuna_trials import main_optuna
 
 
 def print_incorrect_usage(var_range: list, num_trials: int):
@@ -19,7 +20,9 @@ def main_hpc():
     task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID"))
     task_type = os.environ.get("TASK_TYPE")
     num_trials = int(os.environ.get("NUM_TRIALS"))
+    dataset = os.environ.get("DATASET")
     config_vals = config.STANDARD_PARAMS
+    config_vals["dataset"] = dataset
     if task_type == "NOISE":
         rfi_exclusion_vals = [
             None,
@@ -66,6 +69,9 @@ def main_hpc():
             time_length=time_length,
             average_n=average_n,
         )
+        sys.exit(0)
+    elif task_type == "OPTUNA":
+        main_optuna()
         sys.exit(0)
     else:  # Standard
         config_vals["trial"] = task_id + 1
