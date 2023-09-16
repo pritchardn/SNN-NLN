@@ -14,7 +14,7 @@ module load python/3.10.10
 cd /software/projects/pawsey0411/npritchard/setonix/2023.08/python/SNN-NLN/src
 source /software/projects/pawsey0411/npritchard/setonix/2023.08/python/snn-nln/bin/activate
 
-export NUM_TRIALS=1
+export NUM_TRIALS=32
 export TASK_TYPE="OPTUNA"
 export OUTPUT_DIR="/scratch/pawsey0411/npritchard/outputs/optuna"
 export DATA_DIR="/scratch/pawsey0411/npritchard/data"

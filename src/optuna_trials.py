@@ -18,13 +18,12 @@ from models import AutoEncoder, Discriminator
 from utils import generate_model_name, save_json
 
 
-def run_trial(trial: optuna.Trial):
+def run_trial(trial: optuna.Trial, dataset):
     """
     Trial for optuna hyperparameter optimization.
     Is effectively a condensed version of main.py.
     :return: MSE: float
     """
-    latent_dimension = 32
     config_vals = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
         "epochs": trial.suggest_int("epochs", 2, 128),
@@ -33,14 +32,14 @@ def run_trial(trial: optuna.Trial):
         "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-4, 100e-4),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
         "num_layers": 2,
-        "latent_dimension": latent_dimension,
+        "latent_dimension": trial.suggest_categorical("latent_dimension", [8, 16, 32, 64]),
         "num_filters": trial.suggest_categorical("num_filters", [16, 32]),
         "neighbours": trial.suggest_int("neighbours", 1, 25),
         "patch_size": 32,
         "patch_stride": 32,
         "threshold": 10,
         "anomaly_type": "MISO",
-        "dataset": "LOFAR",
+        "dataset": dataset,
         "model_type": "DAE",
         "excluded_rfi": None,
         "time_length": None,
@@ -160,12 +159,12 @@ def run_trial(trial: optuna.Trial):
     return f1_score
 
 
-def main_optuna():
+def main_optuna(n_trials, dataset):
     """
     Main function for optuna hyperparameter optimization.
     """
     study = optuna.create_study(direction="maximize")
-    study.optimize(run_trial, n_trials=32)
+    study.optimize(lambda trial: run_trial(trial, dataset), n_trials=n_trials)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
@@ -203,4 +202,4 @@ def main_optuna():
 
 
 if __name__ == "__main__":
-    main_optuna()
+    main_optuna(1, "HERA")

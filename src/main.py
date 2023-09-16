@@ -305,7 +305,8 @@ def main_standard():
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     config_vals = STANDARD_PARAMS
-    config_vals["dataset"] = "LOFAR"
+    config_vals["dataset"] = "HERA"
+    config_vals["latent_dimension"] = 16
     # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
