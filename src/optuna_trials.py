@@ -32,7 +32,9 @@ def run_trial(trial: optuna.Trial, dataset):
         "disc_learning_rate": trial.suggest_float("disc_learning_rate", 1e-4, 100e-4),
         "optimizer": trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
         "num_layers": 2,
-        "latent_dimension": trial.suggest_categorical("latent_dimension", [8, 16, 32, 64]),
+        "latent_dimension": trial.suggest_categorical(
+            "latent_dimension", [8, 16, 32, 64]
+        ),
         "num_filters": trial.suggest_categorical("num_filters", [16, 32]),
         "neighbours": trial.suggest_int("neighbours", 1, 25),
         "patch_size": 32,
