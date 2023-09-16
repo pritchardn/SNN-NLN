@@ -8,6 +8,9 @@ import os
 import optuna
 import torch
 
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 from torchsummary import summary
 from tqdm import tqdm
 
@@ -167,6 +170,11 @@ def main(config_vals: dict):
         config_vals["anomaly_type"],
         config_vals["model_name"],
     )
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    device_id = rank % torch.cuda.device_count()
+    global DEVICE
+    DEVICE = device_id
     train_x, train_y, test_x, test_y, _ = load_data(config_vals)
     train_dataset, _ = process_into_dataset(
         train_x,
@@ -202,6 +210,7 @@ def main(config_vals: dict):
         break
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
+    auto_encoder = DDP(auto_encoder, device_ids=[DEVICE])
     discriminator = Discriminator(
         1, config_vals["num_filters"], config_vals["latent_dimension"]
     ).to(DEVICE)
@@ -266,6 +275,7 @@ def main(config_vals: dict):
     )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_json(config_vals, output_dir, "config")
+    dist.destroy_process_group()
 
 
 def main_sweep_threshold(num_trials: int = 10):

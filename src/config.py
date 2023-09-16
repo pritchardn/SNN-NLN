@@ -8,6 +8,8 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+DISTRIBUTED = True
+
 STANDARD_PARAMS = {
     "batch_size": 64,
     "epochs": 15,
