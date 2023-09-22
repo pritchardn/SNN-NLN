@@ -11,7 +11,7 @@ import torch
 from torchsummary import summary
 from tqdm import tqdm
 
-from config import DEVICE, STANDARD_PARAMS, get_output_dir, VERBOSE
+from config import DEVICE, get_dataset_params, get_output_dir, VERBOSE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
@@ -273,7 +273,7 @@ def main_sweep_threshold(num_trials: int = 10):
     Runs a number of trials sweeping through the AOFlagger threshold parameter.
     :param num_trials: How many trials to execute for a single threshold
     """
-    config_vals = STANDARD_PARAMS
+    config_vals = get_dataset_params("HERA")
     threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
     for threshold in threshold_range:
         config_vals["threshold"] = threshold
@@ -287,7 +287,7 @@ def main_sweep_noise(num_trials: int = 10):
     Runs a number of trials sweeping through each rfi noise type for out-of-distribution tests.
     :param num_trials: How many trials to execute for a single threshold
     """
-    config_vals = STANDARD_PARAMS
+    config_vals = get_dataset_params("HERA")
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     for rfi_excluded in rfi_exclusion_vals:
         config_vals["excluded_rfi"] = rfi_excluded
@@ -304,9 +304,8 @@ def main_standard():
     sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    config_vals = STANDARD_PARAMS
-    config_vals["dataset"] = "HERA"
-    config_vals["latent_dimension"] = 64
+    dataset = "HERA"
+    config_vals = get_dataset_params(dataset)
     # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:

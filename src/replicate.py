@@ -5,7 +5,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import os
 
 from ann2snn import run_and_rename
-from config import STANDARD_PARAMS, get_output_dir
+from config import HERA_PARAMS, get_output_dir
 from main import main, main_sweep_threshold, main_sweep_noise
 from post_processing import post_process
 
@@ -33,7 +33,7 @@ def replicate(num_trials=10):
         os.path.join(get_output_dir(), "DAE-NOISE"),
     )
     # Train standard models
-    config_vals = STANDARD_PARAMS
+    config_vals = HERA_PARAMS
     for trial in range(num_trials):
         config_vals["trial"] = trial + 1
         main(config_vals)

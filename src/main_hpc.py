@@ -21,8 +21,7 @@ def main_hpc():
     task_type = os.environ.get("TASK_TYPE")
     num_trials = int(os.environ.get("NUM_TRIALS"))
     dataset = os.environ.get("DATASET")
-    config_vals = config.STANDARD_PARAMS
-    config_vals["dataset"] = dataset
+    config_vals = config.get_dataset_params(dataset)
     if task_type == "NOISE":
         rfi_exclusion_vals = [
             None,

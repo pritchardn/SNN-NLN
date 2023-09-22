@@ -8,17 +8,19 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-STANDARD_PARAMS = {
-    "batch_size": 64,
-    "epochs": 15,
-    "ae_learning_rate": 0.0004215152200409049,
-    "gen_learning_rate": 0.0008860574544781892,
-    "disc_learning_rate": 0.0009173638064067504,
-    "optimizer": "RMSprop",
+VERBOSE = False
+
+HERA_PARAMS = {
+    "batch_size": 32,
+    "epochs": 17,
+    "ae_learning_rate": 0.001589310185217798,
+    "gen_learning_rate": 0.0017737115327998176,
+    "disc_learning_rate": 0.00016792476164863897,
+    "optimizer": "Adam",
     "num_layers": 2,
-    "latent_dimension": 32,
+    "latent_dimension": 64,
     "num_filters": 16,
-    "neighbours": 17,
+    "neighbours": 21,
     "patch_size": 32,
     "patch_stride": 32,
     "threshold": 10,
@@ -30,6 +32,39 @@ STANDARD_PARAMS = {
     "average_n": None,
     "trial": 1,
 }
+
+LOFAR_PARAMS = {
+    "batch_size": 16,
+    "epochs": 79,
+    "ae_learning_rate": 0.007166799047204213,
+    "gen_learning_rate": 0.002089832836503927,
+    "disc_learning_rate": 0.0033327432207109144,
+    "optimizer": "RMSprop",
+    "num_layers": 2,
+    "latent_dimension": 16,
+    "num_filters": 16,
+    "neighbours": 22,
+    "patch_size": 32,
+    "patch_stride": 32,
+    "threshold": 10,
+    "anomaly_type": "MISO",
+    "dataset": "LOFAR",
+    "model_type": "DAE",
+    "excluded_rfi": None,
+    "time_length": None,
+    "average_n": None,
+    "trial": 1,
+}
+
+
+def get_dataset_params(dataset: str):
+    if dataset == "HERA":
+        return HERA_PARAMS
+    elif dataset == "LOFAR":
+        return LOFAR_PARAMS
+    else:
+        raise ValueError(f"Unknown dataset {dataset}")
+
 
 SNN_PARAMS = {
     "average_n": 128,
