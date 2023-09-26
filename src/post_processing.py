@@ -284,18 +284,19 @@ def make_performance_table(dframe: pd.DataFrame):
         results.to_csv(ofile)
 
 
-def collate_results_to_file(models: list, output_filename: str = "results"):
+def collate_results_to_file(input_dir: str, models: list, output_filename: str = "results"):
     """
     Collates results and writes to csv file.
     :param: output_filename: Output filename without file extension.
     """
-    result_set = collate_results("outputs", models)
+    result_set = collate_results(input_dir, models)
     write_csv_output_from_dict(
         "outputs", output_filename, result_set, result_set[0].keys()
     )
 
 
 def post_process(
+    input_dir: str,
     dae_names: list,
     dae_threshold_names: list,
     dae_noise_names: list,
@@ -305,6 +306,7 @@ def post_process(
 ):
     # Make threshold plot
     collate_results_to_file(
+        input_dir,
         [
             filename
             for filename in itertools.chain.from_iterable(
@@ -336,6 +338,7 @@ def post_process(
     make_inferencetime_plot(results)
     # Make performance table
     collate_results_to_file(
+        input_dir,
         [
             filename
             for filename in itertools.chain.from_iterable([dae_names, sdae_names])
