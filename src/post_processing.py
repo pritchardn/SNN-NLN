@@ -284,7 +284,9 @@ def make_performance_table(dframe: pd.DataFrame):
         results.to_csv(ofile)
 
 
-def collate_results_to_file(input_dir: str, models: list, output_filename: str = "results"):
+def collate_results_to_file(
+    input_dir: str, models: list, output_filename: str = "results"
+):
     """
     Collates results and writes to csv file.
     :param: output_filename: Output filename without file extension.
