@@ -16,7 +16,7 @@ source /software/projects/pawsey0411/npritchard/setonix/2023.08/python/snn-nln/b
 
 export NUM_TRIALS=1
 export TASK_TYPE="STANDARD"
-export OUTPUT_DIR="/scratch/pawsey0411/npritchard/outputs"
+export OUTPUT_DIR="/scratch/pawsey0411/npritchard/outputs/lofar"
 export DATA_DIR="/scratch/pawsey0411/npritchard/data"
 export INPUT_DIR="/scratch/pawsey0411/npritchard/data"
 export DATASET="LOFAR"

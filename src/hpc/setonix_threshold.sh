@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=SNN-NLN
 #SBATCH --nodes=1
-#SBATCH --time=0:15:00
+#SBATCH --time=0:25:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
 #SBATCH --mem=64GB
