@@ -18,7 +18,7 @@ from spikingjelly.activation_based import ann2snn
 from tqdm import tqdm
 
 import config
-from config import get_output_dir
+from config import get_output_dir, DEVICE
 from data import (
     load_data,
     process_into_dataset,
@@ -107,13 +107,13 @@ def infer_snn(model, dataloader, runtime=50, batch_limit=1, n_limit=-1):
     :param runtime: The runtime to simulate the sNN for.
     :param batch_limit: The number of batches to run inference on. If -1, will run on all images.
     """
-    model.eval().to("cuda")
+    model.eval().to(DEVICE)
     full_output = []
     i = 0
     bound = runtime - n_limit - 1
     with torch.no_grad():
         for img, _ in tqdm(dataloader):
-            img = img.to("cuda")
+            img = img.to(DEVICE)
             out_images = []
             if runtime is None:
                 out = model(img)
