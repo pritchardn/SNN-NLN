@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=SNN-NLN
 #SBATCH --nodes=1
+#SBATCH --mem=230GB
 #SBATCH --time=24:00:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
-#SBATCH --array=0-0
+#SBATCH --array=0-9
 #SBATCH --partition=work
 #SBATCH --account=pawsey0411
 

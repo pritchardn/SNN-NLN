@@ -5,7 +5,7 @@
 #SBATCH --time=3:00:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
-#SBATCH --array=0-9
+#SBATCH --array=0-109
 #SBATCH --partition=work
 #SBATCH --account=pawsey0411
 
@@ -18,7 +18,7 @@ source /software/projects/pawsey0411/npritchard/setonix/2023.08/python/snn-nln/b
 export NUM_TRIALS=1
 export TASK_TYPE="SNN"
 export MODEL_TYPE="DAE-THRESHOLD"
-export OUTPUT_DIR="/scratch/pawsey0411/npritchard/outputs/noise"
+export OUTPUT_DIR="/scratch/pawsey0411/npritchard/outputs/threshold"
 export DATA_DIR="/scratch/pawsey0411/npritchard/data"
 export INPUT_DIR="/scratch/pawsey0411/npritchard/data"
 export DATASET="HERA"
