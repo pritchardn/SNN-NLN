@@ -53,6 +53,7 @@ LOFAR_PARAMS = {
     "excluded_rfi": None,
     "time_length": None,
     "average_n": None,
+    "convert_threshold": None,
     "trial": 1,
 }
 
