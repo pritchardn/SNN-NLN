@@ -185,7 +185,7 @@ def main(config_vals: dict):
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
         threshold=config_vals["threshold"]
-        if config_vals["dataset"] != "LOFAR"
+        if config_vals["dataset"] == "HERA"
         else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -347,7 +347,7 @@ def rerun_evaluation(input_dir):
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
         threshold=config_vals["threshold"]
-        if config_vals["dataset"] != "LOFAR"
+        if config_vals["dataset"] == "HERA"
         else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],

@@ -83,7 +83,7 @@ def run_trial(trial: optuna.Trial, dataset):
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
         threshold=config_vals["threshold"]
-        if config_vals["dataset"] != "TABASCAL"
+        if config_vals["dataset"] == "HERA"
         else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
