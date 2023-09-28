@@ -195,13 +195,18 @@ def load_lofar_data(data_path=get_data_dir()):
 
 
 def load_tabascal_data(data_path=get_data_dir()):
-    filepath = os.path.join(data_path, "ultraviolet-condor_obs_64A_512T-0440-1037_004I_512F-1.000e+09-1.000e+10_1000AST_2SAT_3GRD.pkl")
+    filepath = os.path.join(
+        data_path,
+        "ultraviolet-condor_obs_64A_512T-0440-1037_004I_512F-1.000e+09-1.000e+10_1000AST_2SAT_3GRD.pkl",
+    )
     print(f"Loading Tabascal data from {filepath}")
     with open(filepath, "rb") as f:
         image_data, masks = pickle.load(f)
         image_data = image_data.astype("float32")
         masks = masks.astype("float32")
-        train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(image_data, masks, test_size=0.2)
+        train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
+            image_data, masks, test_size=0.2
+        )
         return train_x, train_y, test_x, test_y, []
 
 
