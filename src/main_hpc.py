@@ -56,7 +56,7 @@ def main_hpc():
         model_trials = sorted(
             glob.glob(os.path.join(config.get_output_dir(), model_type, "MISO", "*"))
         )
-        if num_tasks > len(model_trials):
+        if task_id > len(model_trials):
             print_incorrect_usage(model_trials, num_tasks)
             sys.exit(1)
         input_dir = model_trials[task_id]
