@@ -25,10 +25,14 @@ class Encoder(nn.Module):
                 padding=1,
             ),
             nn.ReLU(),
+            nn.LazyBatchNorm2d(),
+            nn.Dropout(0.05),
             nn.Conv2d(
                 2 * base_channels, base_channels, kernel_size=3, stride=2, padding=1
             ),
             nn.ReLU(),
+            nn.LazyBatchNorm2d(),
+            nn.Dropout(0.05),
             nn.Flatten(),
             nn.LazyLinear(latent_dimension),
         )
@@ -59,6 +63,8 @@ class Decoder(nn.Module):
                 base_channels, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
             nn.ReLU(),
+            nn.LazyBatchNorm2d(),
+            nn.Dropout(0.05),
             nn.LazyConvTranspose2d(num_input_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )
