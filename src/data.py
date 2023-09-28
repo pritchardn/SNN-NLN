@@ -8,6 +8,7 @@ import pickle
 
 import aoflagger as aof
 import numpy as np
+import sklearn.model_selection
 import torch
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
@@ -33,7 +34,10 @@ def clip_data(image_data, masks, mode="HERA"):
     if mode == "HERA":
         max_threshold = 4
         min_threshold = 1
-    else:
+    elif mode == "LOFAR":
+        max_threshold = 95
+        min_threshold = 3
+    else:  # mode == "TABASCAL"
         max_threshold = 95
         min_threshold = 3
     _max = np.mean(image_data[np.invert(masks)]) + max_threshold * np.std(
@@ -69,6 +73,10 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
                 f"{get_data_dir()}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+            )
+        elif mode == "TABASCAL":
+            strategy = aoflagger.load_strategy_file(
+                f"{get_data_dir()}{os.sep}flagging{os.sep}meerkat-default.lua"
             )
         if not strategy:
             return None
@@ -186,6 +194,17 @@ def load_lofar_data(data_path=get_data_dir()):
         return train_x, train_y, test_x, test_y, []
 
 
+def load_tabascal_data(data_path=get_data_dir()):
+    filepath = os.path.join(data_path, "ultraviolet-condor_obs_64A_512T-0440-1037_004I_512F-1.000e+09-1.000e+10_1000AST_2SAT_3GRD.pkl")
+    print(f"Loading Tabascal data from {filepath}")
+    with open(filepath, "rb") as f:
+        image_data, masks = pickle.load(f)
+        image_data = image_data.astype("float32")
+        masks = masks.astype("float32")
+        train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(image_data, masks, test_size=0.2)
+        return train_x, train_y, test_x, test_y, []
+
+
 def load_data(config_vals, data_path=get_data_dir()):
     """
     Loads data from pickle files.
@@ -195,6 +214,8 @@ def load_data(config_vals, data_path=get_data_dir()):
         return load_hera_data(config_vals["excluded_rfi"], data_path=data_path)
     elif dataset == "LOFAR":
         return load_lofar_data(data_path=data_path)
+    elif dataset == "TABASCAL":
+        return load_tabascal_data(data_path=data_path)
     else:
         raise ValueError(f"Dataset {dataset} not supported.")
 

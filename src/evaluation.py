@@ -340,6 +340,10 @@ def calculate_metrics(
         combined_recon = np.clip(
             nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5, 1.0
         ) * np.array([d > np.percentile(d, 66) for d in dists_recon])
+    elif dataset == "TABASCAL":
+        combined_recon = np.clip(
+            nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5, 1.0
+        ) * np.array([d > np.percentile(d, 66) for d in dists_recon])
     else:
         raise ValueError("Dataset not implemented")
     combined_recon = np.nan_to_num(combined_recon)

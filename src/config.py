@@ -8,7 +8,7 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-VERBOSE = False
+VERBOSE = True
 
 HERA_PARAMS = {
     "batch_size": 32,
@@ -57,12 +57,16 @@ LOFAR_PARAMS = {
     "trial": 1,
 }
 
+TABASCAL_PARAMS = HERA_PARAMS
+TABASCAL_PARAMS["dataset"] = "TABASCAL"
 
 def get_dataset_params(dataset: str):
     if dataset == "HERA":
         return HERA_PARAMS
     elif dataset == "LOFAR":
         return LOFAR_PARAMS
+    elif dataset == "TABASCAL":
+        return TABASCAL_PARAMS
     else:
         raise ValueError(f"Unknown dataset {dataset}")
 

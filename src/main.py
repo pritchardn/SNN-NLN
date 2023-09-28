@@ -185,7 +185,7 @@ def main(config_vals: dict):
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
         threshold=config_vals["threshold"]
-        if config_vals["dataset"] == "HERA"
+        if config_vals["dataset"] != "LOFAR"
         else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
@@ -304,7 +304,7 @@ def main_standard():
     sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    dataset = "HERA"
+    dataset = "TABASCAL"
     config_vals = get_dataset_params(dataset)
     # config_vals["threshold"] = None
     if sweep:
@@ -347,7 +347,7 @@ def rerun_evaluation(input_dir):
         batch_size=config_vals["batch_size"],
         mode=config_vals["dataset"],
         threshold=config_vals["threshold"]
-        if config_vals["dataset"] == "HERA"
+        if config_vals["dataset"] != "LOFAR"
         else None,
         patch_size=config_vals["patch_size"],
         stride=config_vals["patch_stride"],
