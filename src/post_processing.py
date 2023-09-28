@@ -293,7 +293,7 @@ def collate_results_to_file(
     """
     result_set = collate_results(input_dir, models)
     write_csv_output_from_dict(
-        "outputs", output_filename, result_set, result_set[0].keys()
+        "outputs", output_filename, result_set, result_set[-1].keys()
     )
 
 
@@ -321,6 +321,7 @@ def post_process(
     make_threshold_plot(results)
     # Make ood plot
     collate_results_to_file(
+        input_dir,
         [
             filename
             for filename in itertools.chain.from_iterable(
@@ -335,7 +336,9 @@ def post_process(
     sdae_models = []
     if sdae_names:
         sdae_models.extend(sdae_names)
-    collate_results_to_file(sdae_models, output_filename="results_inferencetime")
+    collate_results_to_file(
+        input_dir, sdae_models, output_filename="results_inferencetime"
+    )
     results = pd.read_csv("outputs/results_inferencetime.csv")
     make_inferencetime_plot(results)
     # Make performance table
@@ -353,10 +356,15 @@ def post_process(
 
 if __name__ == "__main__":
     post_process(
+        "outputs/setonix-september-2/outputs/",
         ["DAE"],
         ["DAE-THRESHOLD"],
         ["DAE-NOISE"],
-        ["SDAE-THRESHOLD-512-128"],
-        ["SDAE-NOISE-512-128"],
-        ["SDAE-256-128", "SDAE-512-128", "SDAE-512-256"],
+        [
+            "SDAE-THRESHOLD-256-128"
+        ],  # , "SDAE-THRESHOLD-256-256", "SDAE-THRESHOLD-512-128", "SDAE-THRESHOLD-512-256"],
+        [
+            "SDAE-NOISE-256-128"
+        ],  # , "SDAE-NOISE-256-256", "SDAE-NOISE-512-128", "SDAE-NOISE-512-256"],
+        ["SDAE-256-128"],  # , "SDAE-256-256", "SDAE-512-128", "SDAE-512-256"],
     )
