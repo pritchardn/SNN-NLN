@@ -193,6 +193,7 @@ def load_ann_model(input_dir: str, config_vals: dict):
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
+        config_vals["regularize"],
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()

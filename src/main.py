@@ -194,7 +194,10 @@ def main(config_vals: dict):
     )
     # Create model
     auto_encoder = AutoEncoder(
-        1, config_vals["num_filters"], config_vals["latent_dimension"]
+        1,
+        config_vals["num_filters"],
+        config_vals["latent_dimension"],
+        config_vals["regularize"],
     ).to(DEVICE)
     auto_encoder.eval()
     for _, (shape_test, _) in enumerate(test_dataset):
@@ -203,7 +206,10 @@ def main(config_vals: dict):
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
     discriminator = Discriminator(
-        1, config_vals["num_filters"], config_vals["latent_dimension"]
+        1,
+        config_vals["num_filters"],
+        config_vals["latent_dimension"],
+        config_vals["regularize"],
     ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
@@ -306,6 +312,7 @@ def main_standard():
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     dataset = "HERA"
     config_vals = get_dataset_params(dataset)
+    config_vals["epochs"] = 10
     # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
@@ -357,7 +364,12 @@ def rerun_evaluation(input_dir):
 
     # Load model
     model_path = os.path.join(input_dir, "autoencoder.pt")
-    model = AutoEncoder(1, config_vals["num_filters"], config_vals["latent_dimension"])
+    model = AutoEncoder(
+        1,
+        config_vals["num_filters"],
+        config_vals["latent_dimension"],
+        config_vals["regularize"],
+    )
     model.load_state_dict(torch.load(model_path))
     model.eval()
     model = model.to(DEVICE)

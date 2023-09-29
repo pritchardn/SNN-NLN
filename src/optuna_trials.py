@@ -43,6 +43,7 @@ def run_trial(trial: optuna.Trial, dataset):
         "anomaly_type": "MISO",
         "dataset": dataset,
         "model_type": "DAE",
+        "regularize": trial.suggest_categorical("regularize", [True, False]),
         "excluded_rfi": None,
         "time_length": None,
         "average_n": None,
@@ -95,11 +96,13 @@ def run_trial(trial: optuna.Trial, dataset):
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
+        config_vals["regularize"],
     ).to(DEVICE)
     discriminator = Discriminator(
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
+        config_vals["regularize"],
     ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(

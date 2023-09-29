@@ -2,6 +2,7 @@
 Contains model definitions for the project.
 Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 """
+from collections import OrderedDict
 
 from torch import nn
 
@@ -13,29 +14,51 @@ class Encoder(nn.Module):
     """
 
     def __init__(
-        self, num_input_channels: int, base_channels: int, latent_dimension: int
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
     ):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(
-                num_input_channels,
-                2 * base_channels,
-                kernel_size=3,
-                stride=2,
-                padding=1,
-            ),
-            nn.ReLU(),
-            nn.LazyBatchNorm2d(),
-            nn.Dropout(0.05),
-            nn.Conv2d(
-                2 * base_channels, base_channels, kernel_size=3, stride=2, padding=1
-            ),
-            nn.ReLU(),
-            nn.LazyBatchNorm2d(),
-            nn.Dropout(0.05),
-            nn.Flatten(),
-            nn.LazyLinear(latent_dimension),
+        layers = OrderedDict(
+            [
+                (
+                    "conv_0",
+                    nn.Conv2d(
+                        num_input_channels,
+                        2 * base_channels,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                    ),
+                ),
+                ("relu_0", nn.ReLU()),
+                ("norm_0", nn.LazyBatchNorm2d()),
+                ("dropout_0", nn.Dropout(0.05)),
+                (
+                    "conv_1",
+                    nn.Conv2d(
+                        2 * base_channels,
+                        base_channels,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                    ),
+                ),
+                ("relu_1", nn.ReLU()),
+                ("norm_1", nn.LazyBatchNorm2d()),
+                ("dropout_1", nn.Dropout(0.05)),
+                ("flatten", nn.Flatten()),
+                ("linear", nn.LazyLinear(latent_dimension)),
+            ]
         )
+        if not regularize:
+            layers.pop("norm_0")
+            layers.pop("dropout_0")
+            layers.pop("norm_1")
+            layers.pop("dropout_1")
+        self.net = nn.Sequential(layers)
 
     def forward(self, input_data):
         """
@@ -51,23 +74,45 @@ class Decoder(nn.Module):
     """
 
     def __init__(
-        self, num_input_channels: int, base_channels: int, latent_dimension: int
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
     ):
         super().__init__()
         self.linear = nn.Sequential(
             nn.Linear(latent_dimension, 16 * 16 * base_channels),
             nn.ReLU(),
         )
-        self.net = nn.Sequential(
-            nn.LazyConvTranspose2d(
-                base_channels, kernel_size=3, stride=2, padding=1, output_padding=1
-            ),
-            nn.ReLU(),
-            nn.LazyBatchNorm2d(),
-            nn.Dropout(0.05),
-            nn.LazyConvTranspose2d(num_input_channels, kernel_size=3, padding=1),
-            nn.Sigmoid(),
+        layers = OrderedDict(
+            [
+                (
+                    "convt_0",
+                    nn.LazyConvTranspose2d(
+                        base_channels,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        output_padding=1,
+                    ),
+                ),
+                ("relu_0", nn.ReLU()),
+                ("norm_0", nn.LazyBatchNorm2d()),
+                ("dropout_0", nn.Dropout(0.05)),
+                (
+                    "convt_1",
+                    nn.LazyConvTranspose2d(
+                        num_input_channels, kernel_size=3, padding=1
+                    ),
+                ),
+                ("sigmoid_0", nn.Sigmoid()),
+            ]
         )
+        if not regularize:
+            layers.pop("norm_0")
+            layers.pop("dropout_0")
+        self.net = nn.Sequential(layers)
 
     def forward(self, input_data):
         """
@@ -85,11 +130,19 @@ class AutoEncoder(nn.Module):
     """
 
     def __init__(
-        self, num_input_channels: int, base_channels: int, latent_dimension: int
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
     ):
         super().__init__()
-        self.encoder = Encoder(num_input_channels, base_channels, latent_dimension)
-        self.decoder = Decoder(num_input_channels, base_channels, latent_dimension)
+        self.encoder = Encoder(
+            num_input_channels, base_channels, latent_dimension, regularize
+        )
+        self.decoder = Decoder(
+            num_input_channels, base_channels, latent_dimension, regularize
+        )
 
     def forward(self, input_data):
         """
@@ -106,10 +159,16 @@ class Discriminator(nn.Module):
     """
 
     def __init__(
-        self, num_input_channels: int, base_channels: int, latent_dimension: int
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
     ):
         super().__init__()
-        self.encoder = Encoder(num_input_channels, base_channels, latent_dimension)
+        self.encoder = Encoder(
+            num_input_channels, base_channels, latent_dimension, regularize
+        )
         self.flatten = nn.Flatten()
         self.output = nn.LazyLinear(1)
         self.sigmoid = nn.Sigmoid()
