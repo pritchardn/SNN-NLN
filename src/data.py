@@ -5,6 +5,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import copy
 import os
 import pickle
+import h5py
 
 import aoflagger as aof
 import numpy as np
@@ -197,17 +198,19 @@ def load_lofar_data(data_path=get_data_dir()):
 def load_tabascal_data(data_path=get_data_dir()):
     filepath = os.path.join(
         data_path,
-        "ultraviolet-condor_obs_64A_512T-0440-1037_004I_512F-1.000e+09-1.000e+10_1000AST_2SAT_3GRD.pkl",
+        "obs_100AST_1SAT_0GRD_512BSL_64A_512T-0440-1462_016I_512F-1.227e+09-1.334e+09.hdf5",
     )
     print(f"Loading Tabascal data from {filepath}")
-    with open(filepath, "rb") as f:
-        image_data, masks = pickle.load(f)
-        image_data = image_data.astype("float32")
-        masks = masks.astype("float32")
-        train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
-            image_data, masks, test_size=0.2
-        )
-        return train_x, train_y, test_x, test_y, []
+    h5file = h5py.File(filepath, "r")
+    image_data = h5file.get("vis")
+    image_data = np.array(image_data)
+    masks = h5file.get("masks")
+    masks = np.array(masks).astype('bool')
+    train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
+        image_data, masks, test_size=0.2
+    )
+    h5file.close()
+    return train_x, train_y, test_x, test_y, []
 
 
 def load_data(config_vals, data_path=get_data_dir()):

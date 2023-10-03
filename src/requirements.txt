@@ -10,3 +10,4 @@ spikingjelly==0.0.0.0.14
 torch==2.0.0
 torch_summary==1.4.5
 tqdm==4.65.0
+h5py==3.8.0
