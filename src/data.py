@@ -196,7 +196,7 @@ def load_lofar_data(data_path=get_data_dir()):
 
 
 def load_tabascal_data(
-    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3, threshold: int = 1
+    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3, threshold: int = 2
 ):
     filepath = os.path.join(
         data_path,
