@@ -60,12 +60,12 @@ if __name__ == "__main__":
     }
     threshold_range = [0.5, 1, 3, 5, 7, 9, 10, 20, 50, 100, 200]
     excluded_rfi = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    satellite_range = [0, 1, 2]
-    ground_source_range = [0, 1, 3]
+    sat_grn_range = [(0, 0), (1, 0), (1, 3), (2, 0), (2, 3)]
     # HERA
     for threshold in threshold_range:
         config_vals["threshold"] = threshold
         main_aoflagger(config_vals)
+    config_vals["threshold"] = 10
     for rfi in excluded_rfi:
         config_vals["excluded_rfi"] = rfi
         main_aoflagger(config_vals)
@@ -76,8 +76,7 @@ if __name__ == "__main__":
     main_aoflagger(config_vals)
     # TABASCAL
     config_vals["dataset"] = "TABASCAL"
-    for satellite in satellite_range:
+    for satellite, ground in sat_grn_range:
         config_vals["satellite"] = satellite
-        for ground_source in ground_source_range:
-            config_vals["ground_source"] = ground_source
-            main_aoflagger(config_vals)
+        config_vals["ground_source"] = ground
+        main_aoflagger(config_vals)
