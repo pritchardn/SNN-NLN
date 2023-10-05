@@ -7,7 +7,9 @@ import os
 import pickle
 
 import aoflagger as aof
+import h5py
 import numpy as np
+import sklearn.model_selection
 import torch
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
@@ -33,7 +35,10 @@ def clip_data(image_data, masks, mode="HERA"):
     if mode == "HERA":
         max_threshold = 4
         min_threshold = 1
-    else:
+    elif mode == "LOFAR":
+        max_threshold = 95
+        min_threshold = 3
+    else:  # mode == "TABASCAL"
         max_threshold = 95
         min_threshold = 3
     _max = np.mean(image_data[np.invert(masks)]) + max_threshold * np.std(
@@ -69,6 +74,10 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         elif mode == "LOFAR":
             strategy = aoflagger.load_strategy_file(
                 f"{get_data_dir()}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
+            )
+        elif mode == "TABASCAL":
+            strategy = aoflagger.load_strategy_file(
+                f"{get_data_dir()}{os.sep}flagging{os.sep}meerkat-default.lua"
             )
         if not strategy:
             return None
@@ -186,6 +195,27 @@ def load_lofar_data(data_path=get_data_dir()):
         return train_x, train_y, test_x, test_y, []
 
 
+def load_tabascal_data(
+    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3, threshold: int = 1
+):
+    filepath = os.path.join(
+        data_path,
+        f"obs_100AST_{num_sat}SAT_{num_ground}GRD_512BSL_64A_512T-0440-1462_016I_512F-1.227e+09-1.334e+09.hdf5",
+    )
+    print(f"Loading Tabascal data from {filepath}")
+    h5file = h5py.File(filepath, "r")
+    image_data = h5file.get("vis")
+    image_data = np.array(image_data)
+    mask_fieldname = f"masks_{threshold}"
+    masks = h5file.get(mask_fieldname)
+    masks = np.array(masks).astype("bool")
+    train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
+        image_data, masks, test_size=0.2
+    )
+    h5file.close()
+    return train_x, train_y, test_x, test_y, []
+
+
 def load_data(config_vals, data_path=get_data_dir()):
     """
     Loads data from pickle files.
@@ -195,6 +225,8 @@ def load_data(config_vals, data_path=get_data_dir()):
         return load_hera_data(config_vals["excluded_rfi"], data_path=data_path)
     elif dataset == "LOFAR":
         return load_lofar_data(data_path=data_path)
+    elif dataset == "TABASCAL":
+        return load_tabascal_data(data_path=data_path)
     else:
         raise ValueError(f"Dataset {dataset} not supported.")
 

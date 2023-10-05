@@ -310,7 +310,7 @@ def main_standard():
     sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    dataset = "HERA"
+    dataset = "TABASCAL"
     config_vals = get_dataset_params(dataset)
     config_vals["epochs"] = 10
     # config_vals["threshold"] = None

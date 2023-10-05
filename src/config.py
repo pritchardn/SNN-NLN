@@ -8,7 +8,7 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-VERBOSE = False
+VERBOSE = True
 
 HERA_PARAMS = {
     "batch_size": 32,
@@ -59,12 +59,37 @@ LOFAR_PARAMS = {
     "trial": 1,
 }
 
+TABASCAL_PARAMS = {
+    "batch_size": 32,
+    "epochs": 17,
+    "ae_learning_rate": 0.001589310185217798,
+    "gen_learning_rate": 0.0017737115327998176,
+    "disc_learning_rate": 0.00016792476164863897,
+    "optimizer": "Adam",
+    "num_layers": 2,
+    "latent_dimension": 64,
+    "num_filters": 16,
+    "neighbours": 21,
+    "patch_size": 32,
+    "patch_stride": 32,
+    "threshold": 10,
+    "anomaly_type": "MISO",
+    "dataset": "TABASCAL",
+    "model_type": "DAE",
+    "excluded_rfi": None,
+    "time_length": None,
+    "average_n": None,
+    "trial": 1,
+}
+
 
 def get_dataset_params(dataset: str):
     if dataset == "HERA":
         return HERA_PARAMS
     elif dataset == "LOFAR":
         return LOFAR_PARAMS
+    elif dataset == "TABASCAL":
+        return TABASCAL_PARAMS
     else:
         raise ValueError(f"Unknown dataset {dataset}")
 
