@@ -5,9 +5,9 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import copy
 import os
 import pickle
-import h5py
 
 import aoflagger as aof
+import h5py
 import numpy as np
 import sklearn.model_selection
 import torch
@@ -195,17 +195,20 @@ def load_lofar_data(data_path=get_data_dir()):
         return train_x, train_y, test_x, test_y, []
 
 
-def load_tabascal_data(data_path=get_data_dir()):
+def load_tabascal_data(
+    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3, threshold: int = 1
+):
     filepath = os.path.join(
         data_path,
-        "obs_100AST_1SAT_0GRD_512BSL_64A_512T-0440-1462_016I_512F-1.227e+09-1.334e+09.hdf5",
+        f"obs_100AST_{num_sat}SAT_{num_ground}GRD_512BSL_64A_512T-0440-1462_016I_512F-1.227e+09-1.334e+09.hdf5",
     )
     print(f"Loading Tabascal data from {filepath}")
     h5file = h5py.File(filepath, "r")
     image_data = h5file.get("vis")
     image_data = np.array(image_data)
-    masks = h5file.get("masks")
-    masks = np.array(masks).astype('bool')
+    mask_fieldname = f"masks_{threshold}"
+    masks = h5file.get(mask_fieldname)
+    masks = np.array(masks).astype("bool")
     train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
         image_data, masks, test_size=0.2
     )
