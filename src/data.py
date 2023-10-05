@@ -216,7 +216,9 @@ def load_tabascal_data(
     return train_x, train_y, test_x, test_y, []
 
 
-def load_data(config_vals, data_path=get_data_dir()):
+def load_data(
+    config_vals, data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
+):
     """
     Loads data from pickle files.
     """
@@ -226,7 +228,9 @@ def load_data(config_vals, data_path=get_data_dir()):
     elif dataset == "LOFAR":
         return load_lofar_data(data_path=data_path)
     elif dataset == "TABASCAL":
-        return load_tabascal_data(data_path=data_path)
+        return load_tabascal_data(
+            data_path=data_path, num_sat=num_sat, num_ground=num_ground
+        )
     else:
         raise ValueError(f"Dataset {dataset} not supported.")
 

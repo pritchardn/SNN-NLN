@@ -215,11 +215,11 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
         error_recon = np.moveaxis(error_recon, -1, 1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, -1, 1)
     return {
-        "auroc": true_auroc,
-        "auprc": true_auprc,
-        "f1": true_f1,
-        "mse": mse,
-        "acc": acc,
+        "auroc": float(true_auroc),
+        "auprc": float(true_auprc),
+        "f1": float(true_f1),
+        "mse": float(mse),
+        "acc": float(acc),
     }
 
 
