@@ -196,7 +196,7 @@ def load_lofar_data(data_path=get_data_dir()):
 
 
 def load_tabascal_data(
-    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3, threshold: int = 2
+    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
 ):
     filepath = os.path.join(
         data_path,
@@ -206,7 +206,7 @@ def load_tabascal_data(
     h5file = h5py.File(filepath, "r")
     image_data = h5file.get("vis")
     image_data = np.array(image_data)
-    mask_fieldname = f"masks_{threshold}"
+    mask_fieldname = "masks_median"
     masks = h5file.get(mask_fieldname)
     masks = np.array(masks).astype("bool")
     train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(
