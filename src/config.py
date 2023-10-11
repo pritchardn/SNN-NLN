@@ -76,6 +76,7 @@ TABASCAL_PARAMS = {
     "anomaly_type": "MISO",
     "dataset": "TABASCAL",
     "model_type": "DAE",
+    "regularize": False,
     "excluded_rfi": None,
     "time_length": None,
     "average_n": None,
