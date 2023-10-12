@@ -35,16 +35,16 @@ HERA_PARAMS = {
 }
 
 LOFAR_PARAMS = {
-    "batch_size": 16,
-    "epochs": 79,
-    "ae_learning_rate": 0.007166799047204213,
-    "gen_learning_rate": 0.002089832836503927,
-    "disc_learning_rate": 0.0033327432207109144,
-    "optimizer": "RMSprop",
+    "batch_size": 128,
+    "epochs": 120,
+    "ae_learning_rate": 0.00042580710933189434,
+    "gen_learning_rate": 0.007516738291121466,
+    "disc_learning_rate": 0.006851625963722603,
+    "optimizer": "Adam",
     "num_layers": 2,
     "latent_dimension": 16,
     "num_filters": 16,
-    "neighbours": 22,
+    "neighbours": 11,
     "patch_size": 32,
     "patch_stride": 32,
     "threshold": 10,
