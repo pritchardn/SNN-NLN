@@ -7,6 +7,7 @@ import csv
 import itertools
 import json
 import os
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -319,57 +320,61 @@ def post_process(
     aoflagger_noise_names: list,
 ):
     # Make threshold plot
-    collate_results_to_file(
-        input_dir,
-        [
-            filename
-            for filename in itertools.chain.from_iterable(
-                [dae_threshold_names, sdae_threshold_names]
-            )
-        ],
-        aoflagger_dir,
-        aoflagger_threshold_names,
-        output_filename="results_threshold",
-    )
-    results = pd.read_csv("outputs/results_threshold.csv")
-    make_threshold_plot(results)
+    if len(dae_threshold_names) + len(sdae_threshold_names) > 0:
+        collate_results_to_file(
+            input_dir,
+            [
+                filename
+                for filename in itertools.chain.from_iterable(
+                    [dae_threshold_names, sdae_threshold_names]
+                )
+            ],
+            aoflagger_dir,
+            aoflagger_threshold_names,
+            output_filename="results_threshold",
+        )
+        results = pd.read_csv("outputs/results_threshold.csv")
+        make_threshold_plot(results)
     # Make ood plot
-    collate_results_to_file(
-        input_dir,
-        [
-            filename
-            for filename in itertools.chain.from_iterable(
-                [dae_noise_names, sdae_noise_names]
-            )
-        ],
-        aoflagger_dir,
-        aoflagger_noise_names,
-        output_filename="results_noise",
-    )
-    results = pd.read_csv("outputs/results_noise.csv")
-    make_ood_plot(results)
+    if len(dae_noise_names) + len(sdae_noise_names) > 0:
+        collate_results_to_file(
+            input_dir,
+            [
+                filename
+                for filename in itertools.chain.from_iterable(
+                    [dae_noise_names, sdae_noise_names]
+                )
+            ],
+            aoflagger_dir,
+            aoflagger_noise_names,
+            output_filename="results_noise",
+        )
+        results = pd.read_csv("outputs/results_noise.csv")
+        make_ood_plot(results)
     # Make inference time plot
-    sdae_models = []
-    if sdae_names:
-        sdae_models.extend(sdae_names)
-    collate_results_to_file(
-        input_dir, sdae_models, output_filename="results_inferencetime"
-    )
-    results = pd.read_csv("outputs/results_inferencetime.csv")
-    make_inferencetime_plot(results)
+    if len(sdae_names) > 0:
+        sdae_models = []
+        if sdae_names:
+            sdae_models.extend(sdae_names)
+        collate_results_to_file(
+            input_dir, sdae_models, output_filename="results_inferencetime"
+        )
+        results = pd.read_csv("outputs/results_inferencetime.csv")
+        make_inferencetime_plot(results)
     # Make performance table
-    collate_results_to_file(
-        input_dir,
-        [
-            filename
-            for filename in itertools.chain.from_iterable([dae_names, sdae_names])
-        ],
-        aoflagger_dir,
-        aoflagger_names,
-        output_filename="results",
-    )
-    results = pd.read_csv("outputs/results.csv")
-    make_performance_table(results)
+    if len(dae_names) + len(sdae_names) > 0:
+        collate_results_to_file(
+            input_dir,
+            [
+                filename
+                for filename in itertools.chain.from_iterable([dae_names, sdae_names])
+            ],
+            aoflagger_dir,
+            aoflagger_names,
+            output_filename="results",
+        )
+        results = pd.read_csv("outputs/results.csv")
+        make_performance_table(results)
 
 
 if __name__ == "__main__":
