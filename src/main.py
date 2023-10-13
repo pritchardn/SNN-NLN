@@ -178,6 +178,7 @@ def main(config_vals: dict):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=True,
+        limit=config_vals.get("limit", None),
     )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
@@ -254,6 +255,7 @@ def main(config_vals: dict):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=False,
+        limit=config_vals.get("limit", None),
     )
     # Test model
     evaluate_model(
@@ -347,6 +349,7 @@ def rerun_evaluation(input_dir):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=False,
+        limit=config_vals.get("limit", None)
     )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,

@@ -66,6 +66,7 @@ def run_trial(trial: optuna.Trial, dataset):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=True,
+        limit=config_vals.get("limit", None),
     )
     unshuffled_train_dataset, _ = process_into_dataset(
         train_x,
@@ -77,6 +78,7 @@ def run_trial(trial: optuna.Trial, dataset):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=False,
+        limit=config_vals.get("limit", None),
     )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,
