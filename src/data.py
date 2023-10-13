@@ -195,9 +195,7 @@ def load_lofar_data(data_path=get_data_dir()):
         return train_x, train_y, test_x, test_y, []
 
 
-def load_tabascal_data(
-    data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
-):
+def load_tabascal_data(data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3):
     filepath = os.path.join(
         data_path,
         f"obs_100AST_{num_sat}SAT_{num_ground}GRD_512BSL_64A_512T-0440-1462_016I_512F-1.227e+09-1.334e+09.hdf5",

@@ -349,7 +349,7 @@ def rerun_evaluation(input_dir):
         stride=config_vals["patch_stride"],
         filter_rfi_patches=True,
         shuffle=False,
-        limit=config_vals.get("limit", None)
+        limit=config_vals.get("limit", None),
     )
     test_dataset, test_masks_original = process_into_dataset(
         test_x,

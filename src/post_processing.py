@@ -79,11 +79,11 @@ def collate_results(outputdir: str, models: list) -> list:
                 else:
                     trial_vals.update(result_data)
             print(trial_vals)
-            if trial_vals["time_length"]:
+            if trial_vals.get("time_length", None):
                 trial_vals[
                     "model_type"
                 ] = f"{trial_vals['model_type']}-{trial_vals['time_length']}"
-            if trial_vals["average_n"]:
+            if trial_vals.get("average_n", None):
                 trial_vals[
                     "model_type"
                 ] = f"{trial_vals['model_type']}-{trial_vals['average_n']}"
@@ -117,29 +117,30 @@ def make_threshold_plot(dframe: pd.DataFrame):
                 }
             )
         )
+        model_results = model_results.replace(np.nan, 0)
         xvals = np.arange(0, len(model_results.index), 1)
         axes[0].bar(
-            xvals + width / 2 * i,
+            xvals + width * i,
             model_results["auroc"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[1].bar(
-            xvals + width / 2 * i,
+            xvals + width * i,
             model_results["auprc"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[2].bar(
-            xvals + width / 2 * i,
+            xvals + width * i,
             model_results["f1"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
-        i = -i
+        i += 1
     axes[2].legend(loc="upper right", framealpha=1, bbox_to_anchor=(1.0, 1.15))
     axes[0].set_ylabel("AUROC")
     axes[1].set_ylabel("AUPRC")
@@ -177,28 +178,29 @@ def make_ood_plot(dframe: pd.DataFrame):
                 }
             )
         )
+        model_results = model_results.replace(np.nan, 0)
         axes[0].bar(
-            index + width / 2 * i,
+            index + width * i,
             model_results["auroc"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["auroc"]["std"],
         )
         axes[1].bar(
-            index + width / 2 * i,
+            index + width * i,
             model_results["auprc"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["auprc"]["std"],
         )
         axes[2].bar(
-            index + width / 2 * i,
+            index + width * i,
             model_results["f1"]["mean"],
             width=width,
             label=model_to_label(model),
             yerr=model_results["f1"]["std"],
         )
-        i = -i
+        i += 1
 
     axes[0].legend(loc="upper right", framealpha=1, bbox_to_anchor=(1.0, 1.25))
     axes[0].set_ylabel("AUROC")
@@ -233,6 +235,7 @@ def make_inferencetime_plot(dframe: pd.DataFrame):
                 "f1": ["mean", "std"],
             }
         )
+        inference_results = inference_results.replace(np.nan, 0)
         axes[0].bar(
             index + width / 2 * i,
             inference_results["auroc"]["mean"],
@@ -285,16 +288,21 @@ def make_performance_table(dframe: pd.DataFrame):
 
 
 def collate_results_to_file(
-    input_dir: str, models: list, output_filename: str = "results"
+    input_dir: str,
+    models: list,
+    aoflagger_dir: str = None,
+    aoflagger_models: list = None,
+    output_filename: str = "results",
 ):
     """
     Collates results and writes to csv file.
     :param: output_filename: Output filename without file extension.
     """
     result_set = collate_results(input_dir, models)
-    write_csv_output_from_dict(
-        "outputs", output_filename, result_set, result_set[-1].keys()
-    )
+    fieldnames = result_set[-1].keys()
+    if aoflagger_dir and aoflagger_models:
+        result_set.extend(collate_results(aoflagger_dir, aoflagger_models))
+    write_csv_output_from_dict("outputs", output_filename, result_set, fieldnames)
 
 
 def post_process(
@@ -305,6 +313,10 @@ def post_process(
     sdae_threshold_names: list,
     sdae_noise_names: list,
     sdae_names: list,
+    aoflagger_dir: str,
+    aoflagger_names: list,
+    aoflagger_threshold_names: list,
+    aoflagger_noise_names: list,
 ):
     # Make threshold plot
     collate_results_to_file(
@@ -315,6 +327,8 @@ def post_process(
                 [dae_threshold_names, sdae_threshold_names]
             )
         ],
+        aoflagger_dir,
+        aoflagger_threshold_names,
         output_filename="results_threshold",
     )
     results = pd.read_csv("outputs/results_threshold.csv")
@@ -328,6 +342,8 @@ def post_process(
                 [dae_noise_names, sdae_noise_names]
             )
         ],
+        aoflagger_dir,
+        aoflagger_noise_names,
         output_filename="results_noise",
     )
     results = pd.read_csv("outputs/results_noise.csv")
@@ -348,6 +364,8 @@ def post_process(
             filename
             for filename in itertools.chain.from_iterable([dae_names, sdae_names])
         ],
+        aoflagger_dir,
+        aoflagger_names,
         output_filename="results",
     )
     results = pd.read_csv("outputs/results.csv")
@@ -356,7 +374,7 @@ def post_process(
 
 if __name__ == "__main__":
     post_process(
-        "outputs/setonix-september-2/outputs/",
+        "outputs/FINAL/HERA/",
         ["DAE"],
         ["DAE-THRESHOLD"],
         ["DAE-NOISE"],
@@ -367,4 +385,8 @@ if __name__ == "__main__":
             "SDAE-NOISE-256-128"
         ],  # , "SDAE-NOISE-256-256", "SDAE-NOISE-512-128", "SDAE-NOISE-512-256"],
         ["SDAE-256-128"],  # , "SDAE-256-256", "SDAE-512-128", "SDAE-512-256"],
+        "outputs/FINAL/AOFLAGGER/",
+        ["AOFLAGGER-HERA"],
+        ["AOFLAGGER-THRESHOLD"],
+        ["AOFLAGGER-NOISE"],
     )
