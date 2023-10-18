@@ -192,12 +192,12 @@ def get_error_dataset(
     return output
 
 
-def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray):
+def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray, threshold=0.0):
     if error_recon.shape[1] == 1 and test_masks_orig_recon.shape[1] == 1:
         error_recon = np.moveaxis(error_recon, 1, -1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, 1, -1)
     false_pos_rate, true_pos_rate, _ = roc_curve(
-        test_masks_orig_recon.flatten() > 0, error_recon.flatten()
+        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold
     )
     acc = balanced_accuracy_score(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten() > 0
@@ -205,7 +205,7 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     mse = mean_squared_error(test_masks_orig_recon.flatten(), error_recon.flatten())
     true_auroc = auc(false_pos_rate, true_pos_rate)
     precision, recall, _ = precision_recall_curve(
-        test_masks_orig_recon.flatten() > 0, error_recon.flatten()
+        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold
     )
     true_auprc = auc(recall, precision)
     f1_scores = 2 * recall * precision / (recall + precision)
@@ -292,6 +292,7 @@ def calculate_metrics(
     patch_size: int = None,
     dataset="HERA",
     evaluate_run=False,
+    threshold=0.0,
 ):
     """
     The function for calculating metrics for a model trial.
@@ -330,7 +331,7 @@ def calculate_metrics(
 
     dists_recon = get_dists(neighbours_dist, original_size, patch_size)
 
-    nln_metrics = _calculate_metrics(test_masks_original_reconstructed, nln_error_recon)
+    nln_metrics = _calculate_metrics(test_masks_original_reconstructed, nln_error_recon, threshold=threshold)
 
     if dataset == "HERA":
         combined_recon = nln_error_recon * np.array(
@@ -371,7 +372,7 @@ def calculate_metrics(
             test_images_recon,
             test_masks_reconstructed,
             error_recon,
-            nln_error_recon,
+            nln_error_recon > threshold,
             dists_recon,
             combined_recon,
             x_hat_recon,
@@ -438,6 +439,7 @@ def evaluate_model(
     anomaly_type,
     dataset,
     evaluate_run=False,
+    threshold=0.0,
 ):
     """
     Evaluates a model trial.
@@ -456,6 +458,7 @@ def evaluate_model(
         patch_size,
         dataset,
         evaluate_run,
+        threshold
     )
     # TODO: Move metric saving to outside
     save_metrics(

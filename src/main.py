@@ -5,6 +5,7 @@ Copyright (c) 2023, Nicholas Pritchard <nicholas.pritchard@icrar.org>
 import json
 import os
 
+import numpy as np
 import optuna
 import torch
 
@@ -375,22 +376,25 @@ def rerun_evaluation(input_dir):
     model.load_state_dict(torch.load(model_path))
     model.eval()
     model = model.to(DEVICE)
-    metrics = evaluate_model(
-        model,
-        test_masks_original,
-        test_dataset,
-        train_dataset,
-        config_vals.get("neighbours"),
-        config_vals.get("latent_dimension"),
-        train_x[0].shape[0],
-        config_vals.get("patch_size"),
-        config_vals["model_name"],
-        config_vals["model_type"],
-        config_vals.get("anomaly_type"),
-        config_vals.get("dataset"),
-    )
-    print(json.dumps(metrics, indent=4))
+    for threshold in [0.15]:
+        print(f"Threshold: {threshold}")
+        metrics = evaluate_model(
+            model,
+            test_masks_original,
+            test_dataset,
+            train_dataset,
+            config_vals.get("neighbours"),
+            config_vals.get("latent_dimension"),
+            train_x[0].shape[0],
+            config_vals.get("patch_size"),
+            config_vals["model_name"],
+            config_vals["model_type"],
+            config_vals.get("anomaly_type"),
+            config_vals.get("dataset"),
+            threshold=threshold
+        )
+        print(json.dumps(metrics, indent=4))
 
 
 if __name__ == "__main__":
-    main_standard()
+    rerun_evaluation("outputs/DAE/MISO/DAE_MISO_TABASCAL_64_2_10_trial_1_didactic-whale")
