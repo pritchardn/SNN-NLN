@@ -314,7 +314,6 @@ def main_standard():
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     dataset = "TABASCAL"
     config_vals = get_dataset_params(dataset)
-    config_vals["epochs"] = 10
     # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
