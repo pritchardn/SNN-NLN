@@ -192,12 +192,12 @@ def get_error_dataset(
     return output
 
 
-def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray, threshold=0.0):
+def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarray, threshold=None):
     if error_recon.shape[1] == 1 and test_masks_orig_recon.shape[1] == 1:
         error_recon = np.moveaxis(error_recon, 1, -1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, 1, -1)
     false_pos_rate, true_pos_rate, _ = roc_curve(
-        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold
+        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold if threshold else error_recon.flatten()
     )
     acc = balanced_accuracy_score(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten() > 0
@@ -205,7 +205,7 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     mse = mean_squared_error(test_masks_orig_recon.flatten(), error_recon.flatten())
     true_auroc = auc(false_pos_rate, true_pos_rate)
     precision, recall, _ = precision_recall_curve(
-        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold
+        test_masks_orig_recon.flatten() > 0, error_recon.flatten() > threshold if threshold else error_recon.flatten()
     )
     true_auprc = auc(recall, precision)
     f1_scores = 2 * recall * precision / (recall + precision)
@@ -292,7 +292,7 @@ def calculate_metrics(
     patch_size: int = None,
     dataset="HERA",
     evaluate_run=False,
-    threshold=0.0,
+    threshold=None,
 ):
     """
     The function for calculating metrics for a model trial.
@@ -372,7 +372,7 @@ def calculate_metrics(
             test_images_recon,
             test_masks_reconstructed,
             error_recon,
-            nln_error_recon > threshold,
+            nln_error_recon > threshold if threshold else nln_error_recon,
             dists_recon,
             combined_recon,
             x_hat_recon,
@@ -439,7 +439,7 @@ def evaluate_model(
     anomaly_type,
     dataset,
     evaluate_run=False,
-    threshold=0.0,
+    threshold=None,
 ):
     """
     Evaluates a model trial.

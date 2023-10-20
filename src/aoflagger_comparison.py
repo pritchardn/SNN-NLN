@@ -1,7 +1,9 @@
 import os
 
+import numpy as np
+
 from config import get_output_dir
-from data import load_data, flag_data
+from data import load_data, flag_data, process_into_dataset, reconstruct_patches
 from evaluation import _calculate_metrics, save_metrics
 from utils import generate_model_name, save_json
 
@@ -31,6 +33,7 @@ def main_aoflagger(config_vals: dict):
     flags = flag_data(
         test_x, threshold=config_vals["threshold"], mode=config_vals["dataset"]
     ).astype("float32")
+    flags = np.expand_dims(flags, axis=-1)
     # Calculate metrics
     metrics = _calculate_metrics(test_y, flags)
     print(metrics)
@@ -62,6 +65,7 @@ if __name__ == "__main__":
     excluded_rfi = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
     sat_grn_range = [(0, 0), (1, 0), (1, 3), (2, 0), (2, 3)]
     # HERA
+    """
     for threshold in threshold_range:
         config_vals["threshold"] = threshold
         main_aoflagger(config_vals)
@@ -69,14 +73,17 @@ if __name__ == "__main__":
     for rfi in excluded_rfi:
         config_vals["excluded_rfi"] = rfi
         main_aoflagger(config_vals)
+        """
     # LOFAR
     config_vals["excluded_rfi"] = None
     config_vals["dataset"] = "LOFAR"
     config_vals["threshold"] = 10
     main_aoflagger(config_vals)
+    """
     # TABASCAL
     config_vals["dataset"] = "TABASCAL"
     for satellite, ground in sat_grn_range:
         config_vals["satellite"] = satellite
         config_vals["ground_source"] = ground
         main_aoflagger(config_vals)
+        """

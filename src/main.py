@@ -313,7 +313,7 @@ def main_standard():
     sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    dataset = "TABASCAL"
+    dataset = "LOFAR"
     config_vals = get_dataset_params(dataset)
     # config_vals["threshold"] = None
     if sweep:
@@ -371,12 +371,12 @@ def rerun_evaluation(input_dir):
         1,
         config_vals["num_filters"],
         config_vals["latent_dimension"],
-        config_vals["regularize"],
+        config_vals.get("regularize", False),
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()
     model = model.to(DEVICE)
-    for threshold in [0.15]:
+    for threshold in [0.2125, 0.25, 0.275, 0.3]:
         print(f"Threshold: {threshold}")
         metrics = evaluate_model(
             model,
@@ -397,4 +397,7 @@ def rerun_evaluation(input_dir):
 
 
 if __name__ == "__main__":
-    rerun_evaluation("outputs/DAE/MISO/DAE_MISO_TABASCAL_64_2_10_trial_1_didactic-whale")
+    # rerun_evaluation("outputs/DAE/MISO/DAE_MISO_HERA_64_2_10_trial_1_ultra-dinosaur")
+    # rerun_evaluation("outputs/DAE/MISO/DAE_MISO_TABASCAL_64_2_10_trial_1_invisible-narwhal")
+    rerun_evaluation("outputs/DAE/MISO/DAE_MISO_LOFAR_64_2_10_trial_1_handsome-barracuda")
+    # main_standard()
