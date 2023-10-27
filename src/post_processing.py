@@ -50,6 +50,10 @@ def write_csv_output_from_dict(
         csv_writer = csv.DictWriter(ofile, fieldnames=headers)
         csv_writer.writeheader()
         for row in data:
+            if "ground_source" in row.keys():
+                row.pop("ground_source")
+            if "satellite" in row.keys():
+                row.pop("satellite")
             csv_writer.writerow(row)
 
 
@@ -379,19 +383,15 @@ def post_process(
 
 if __name__ == "__main__":
     post_process(
-        "outputs/FINAL/HERA/",
+        "outputs/FINAL/TABASCAL/",
         ["DAE"],
-        ["DAE-THRESHOLD"],
-        ["DAE-NOISE"],
-        [
-            "SDAE-THRESHOLD-256-128"
-        ],  # , "SDAE-THRESHOLD-256-256", "SDAE-THRESHOLD-512-128", "SDAE-THRESHOLD-512-256"],
-        [
-            "SDAE-NOISE-256-128"
-        ],  # , "SDAE-NOISE-256-256", "SDAE-NOISE-512-128", "SDAE-NOISE-512-256"],
-        ["SDAE-256-128"],  # , "SDAE-256-256", "SDAE-512-128", "SDAE-512-256"],
+        [],
+        [],
+        [],  # , "SDAE-THRESHOLD-256-256", "SDAE-THRESHOLD-512-128", "SDAE-THRESHOLD-512-256"],
+        [],  # , "SDAE-NOISE-256-256", "SDAE-NOISE-512-128", "SDAE-NOISE-512-256"],
+        ["SDAE-256-128", "SDAE-256-256", "SDAE-512-128", "SDAE-512-256"],
         "outputs/FINAL/AOFLAGGER/",
-        ["AOFLAGGER-HERA"],
-        ["AOFLAGGER-THRESHOLD"],
-        ["AOFLAGGER-NOISE"],
+        ["AOFLAGGER-TABASCAL"],
+        [],
+        [],
     )

@@ -36,7 +36,7 @@ HERA_PARAMS = {
 
 LOFAR_PARAMS = {
     "batch_size": 128,
-    "epochs": 12,
+    "epochs": 100,
     "ae_learning_rate": 1e-4,
     "gen_learning_rate": 1e-4,
     "disc_learning_rate": 1e-4,
@@ -57,7 +57,6 @@ LOFAR_PARAMS = {
     "average_n": None,
     "convert_threshold": None,
     "trial": 1,
-    "limit": 1500,  # TODO: Remove before full run.
 }
 
 TABASCAL_PARAMS = {
