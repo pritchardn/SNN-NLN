@@ -6,14 +6,15 @@ from torch import nn
 
 
 class Encoder(nn.Module):
-
-    def __init__(self,
-                 num_input_channels: int,
-                 base_channels: int,
-                 latent_dimension: int,
-                 regularize: bool,
-                 time_steps: int,
-                 tau: float):
+    def __init__(
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
+        time_steps: int,
+        tau: float,
+    ):
         super().__init__()
         self.time_steps = time_steps
         layers = OrderedDict(
@@ -71,13 +72,13 @@ class Decoder(nn.Module):
     """
 
     def __init__(
-            self,
-            num_input_channels: int,
-            base_channels: int,
-            latent_dimension: int,
-            regularize: bool,
-            time_steps: int,
-            tau: float,
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
+        time_steps: int,
+        tau: float,
     ):
         super().__init__()
         self.time_steps = time_steps
@@ -118,8 +119,7 @@ class Decoder(nn.Module):
         functional.set_step_mode(self, step_mode="m")
 
     def forward(self, x: torch.Tensor):
-        x_seq = x.unsqueeze(0).repeat(self.time_steps, 1, 1)
-        x_seq = self.linear(x_seq)
+        x_seq = self.linear(x)
         x_seq = x_seq.reshape(self.time_steps, -1, 16, 16)
         x_seq = self.net(x_seq)
         return x_seq
@@ -131,20 +131,30 @@ class SDAutoEncoder(nn.Module):
     """
 
     def __init__(
-            self,
-            num_input_channels: int,
-            base_channels: int,
-            latent_dimension: int,
-            regularize: bool,
-            time_steps: int,
-            tau: float,
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
+        time_steps: int,
+        tau: float,
     ):
         super().__init__()
         self.encoder = Encoder(
-            num_input_channels, base_channels, latent_dimension, regularize, time_steps, tau
+            num_input_channels,
+            base_channels,
+            latent_dimension,
+            regularize,
+            time_steps,
+            tau,
         )
         self.decoder = Decoder(
-            num_input_channels, base_channels, latent_dimension, regularize, time_steps, tau
+            num_input_channels,
+            base_channels,
+            latent_dimension,
+            regularize,
+            time_steps,
+            tau,
         )
 
     def forward(self, input_data):
@@ -162,17 +172,22 @@ class SDDiscriminator(nn.Module):
     """
 
     def __init__(
-            self,
-            num_input_channels: int,
-            base_channels: int,
-            latent_dimension: int,
-            regularize: bool,
-            time_steps: int,
-            tau: float,
+        self,
+        num_input_channels: int,
+        base_channels: int,
+        latent_dimension: int,
+        regularize: bool,
+        time_steps: int,
+        tau: float,
     ):
         super().__init__()
         self.encoder = Encoder(
-            num_input_channels, base_channels, latent_dimension, regularize, time_steps, tau
+            num_input_channels,
+            base_channels,
+            latent_dimension,
+            regularize,
+            time_steps,
+            tau,
         )
         self.flatten = nn.Flatten()
         self.output = nn.LazyLinear(1)

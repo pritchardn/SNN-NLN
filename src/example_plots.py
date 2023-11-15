@@ -17,7 +17,9 @@ def plot_spectrogram(image, title, output_name):
     plt.close("all")
 
 
-def plot_final_images(dataset: str, original, mask, nln_output, snln_output, num_examples: int = 1):
+def plot_final_images(
+    dataset: str, original, mask, nln_output, snln_output, num_examples: int = 1
+):
     _, axes = plt.subplots(1, 4, figsize=(20, 5))
     axes[0].set_title("Original")
     axes[1].set_title("Mask")
@@ -30,23 +32,19 @@ def plot_final_images(dataset: str, original, mask, nln_output, snln_output, num
     for i in range(num_examples):
         temp = original[i, ...]
         temp = np.moveaxis(temp, 0, -1)
-        axes[0].imshow(temp.astype(np.float32), interpolation="nearest",
-                       aspect="auto")
+        axes[0].imshow(temp.astype(np.float32), interpolation="nearest", aspect="auto")
         plot_spectrogram(temp.astype(np.float32), "original", f"{dataset}_{i}")
         temp = mask[i, ...]
         temp = np.moveaxis(temp, 0, -1)
-        axes[1].imshow(temp.astype(np.float32), interpolation="nearest",
-                       aspect="auto")
+        axes[1].imshow(temp.astype(np.float32), interpolation="nearest", aspect="auto")
         plot_spectrogram(temp.astype(np.float32), "mask", f"{dataset}_{i}")
         temp = nln_output[i, ...]
         temp = np.moveaxis(temp, 0, -1)
-        axes[2].imshow(temp.astype(np.float32), interpolation="nearest",
-                       aspect="auto")
+        axes[2].imshow(temp.astype(np.float32), interpolation="nearest", aspect="auto")
         plot_spectrogram(temp.astype(np.float32), "nln", f"{dataset}_{i}")
         temp = snln_output[i, ...]
         temp = np.moveaxis(temp, 0, -1)
-        axes[3].imshow(temp.astype(np.float32), interpolation="nearest",
-                       aspect="auto")
+        axes[3].imshow(temp.astype(np.float32), interpolation="nearest", aspect="auto")
         plot_spectrogram(temp.astype(np.float32), "snln", f"{dataset}_{i}")
         plt.savefig(f"{dataset}_{i}.png", dpi=300)
 
@@ -121,41 +119,67 @@ def create_dataset_examples(input_dir: str, config_vals: dict):
 
     if config_vals["dataset"] == "HERA":
         combined_recon = np.where(
-            nln_error_recon > np.median(nln_error_recon) + np.std(nln_error_recon), 1, 0)
+            nln_error_recon > np.median(nln_error_recon) + np.std(nln_error_recon), 1, 0
+        )
         snln_error_recon = np.where(
-            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std() * 2, 1, 0)
+            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std() * 2,
+            1,
+            0,
+        )
 
     elif config_vals["dataset"] == "LOFAR":
         combined_recon = np.where(
-            nln_error_recon > nln_error_recon.mean() + nln_error_recon.std() * 2.5, 1, 0)
+            nln_error_recon > nln_error_recon.mean() + nln_error_recon.std() * 2.5, 1, 0
+        )
         snln_error_recon = np.where(
-            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std() * 2.5, 1, 0)
+            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std() * 2.5,
+            1,
+            0,
+        )
     elif config_vals["dataset"] == "TABASCAL":
         combined_recon = np.where(
-            nln_error_recon > nln_error_recon.mean() + nln_error_recon.std() * 2, 1, 0)
+            nln_error_recon > nln_error_recon.mean() + nln_error_recon.std() * 2, 1, 0
+        )
         snln_error_recon = np.where(
-            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std(), 1, 0)
+            snln_error_recon > snln_error_recon.mean() + snln_error_recon.std(), 1, 0
+        )
     else:
         raise ValueError("Dataset not implemented")
 
-    return test_orig_reconstructed, test_masks_original_reconstructed, combined_recon, snln_error_recon
+    return (
+        test_orig_reconstructed,
+        test_masks_original_reconstructed,
+        combined_recon,
+        snln_error_recon,
+    )
 
 
 def main(input_dir: str):
     config_vals = load_config(input_dir)
     config_vals["limit"] = 20
-    originals, masks, nln_outputs, snln_error_recon = create_dataset_examples(input_dir,
-                                                                              config_vals)
-    plot_final_images(config_vals["dataset"], originals, masks, nln_outputs, snln_error_recon,
-                      config_vals["limit"])
+    originals, masks, nln_outputs, snln_error_recon = create_dataset_examples(
+        input_dir, config_vals
+    )
+    plot_final_images(
+        config_vals["dataset"],
+        originals,
+        masks,
+        nln_outputs,
+        snln_error_recon,
+        config_vals["limit"],
+    )
 
 
 if __name__ == "__main__":
     # Make HERA plot
-    input_dir = "outputs/FINAL/HERA/DAE/MISO/DAE_MISO_HERA_64_2_10_trial_1_warping-lobster"
+    input_dir = (
+        "outputs/FINAL/HERA/DAE/MISO/DAE_MISO_HERA_64_2_10_trial_1_warping-lobster"
+    )
     # main(input_dir)
     # Make LOFAR plot
-    input_dir = "outputs/FINAL/LOFAR/DAE/MISO/DAE_MISO_LOFAR_64_2_10_trial_10_wisteria-mule"
+    input_dir = (
+        "outputs/FINAL/LOFAR/DAE/MISO/DAE_MISO_LOFAR_64_2_10_trial_10_wisteria-mule"
+    )
     main(input_dir)
     # Make TABASCAL plot
     input_dir = "outputs/FINAL/TABASCAL/DAE/MISO/DAE_MISO_TABASCAL_64_2_10_trial_3_jumping-fossa"

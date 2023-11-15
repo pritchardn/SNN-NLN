@@ -268,7 +268,7 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
     """
     dists = np.mean(neighbours_dist, axis=tuple(range(1, neighbours_dist.ndim)))
     if patch_size is not None:
-        dists = np.array([[d] * patch_size**2 for i, d in enumerate(dists)]).reshape(
+        dists = np.array([[d] * patch_size ** 2 for i, d in enumerate(dists)]).reshape(
             len(dists), patch_size, patch_size
         )
         dists_recon = reconstruct_patches(
