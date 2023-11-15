@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 import torch
-from spikingjelly.activation_based import neuron, surrogate
+from spikingjelly.activation_based import neuron, surrogate, layer, functional
 from torch import nn
 
 
@@ -20,7 +20,7 @@ class Encoder(nn.Module):
             [
                 (
                     "conv_0",
-                    nn.Conv2d(
+                    layer.Conv2d(
                         num_input_channels,
                         2 * base_channels,
                         kernel_size=3,
@@ -28,12 +28,12 @@ class Encoder(nn.Module):
                         padding=1,
                     ),
                 ),
-                ("norm_0", nn.LazyBatchNorm2d()),
+                ("norm_0", layer.BatchNorm2d(num_features=2 * base_channels)),
                 ("LIF_0", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
-                ("dropout_0", nn.Dropout(0.05)),
+                ("dropout_0", layer.Dropout(0.05)),
                 (
                     "conv_1",
-                    nn.Conv2d(
+                    layer.Conv2d(
                         2 * base_channels,
                         base_channels,
                         kernel_size=3,
@@ -41,11 +41,11 @@ class Encoder(nn.Module):
                         padding=1,
                     ),
                 ),
-                ("norm_1", nn.LazyBatchNorm2d()),
+                ("norm_1", layer.BatchNorm2d(num_features=base_channels)),
                 ("LIF_1", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
-                ("dropout_1", nn.Dropout(0.05)),
-                ("flatten", nn.Flatten()),
-                ("linear", nn.LazyLinear(latent_dimension)),
+                ("dropout_1", layer.Dropout(0.05)),
+                ("flatten", layer.Flatten()),
+                ("linear", layer.Linear((base_channels ** 3) // 4, latent_dimension)),
                 ("LIF_2", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
             ]
         )
@@ -55,6 +55,8 @@ class Encoder(nn.Module):
             layers.pop("norm_1")
             layers.pop("dropout_1")
         self.net = nn.Sequential(layers)
+
+        functional.set_step_mode(self, step_mode="m")
 
     def forward(self, x: torch.Tensor):
         x_seq = x.unsqueeze(0).repeat(self.time_steps, 1, 1, 1, 1)
@@ -80,14 +82,15 @@ class Decoder(nn.Module):
         super().__init__()
         self.time_steps = time_steps
         self.linear = nn.Sequential(
-            nn.Linear(latent_dimension, 16 * 16 * base_channels),
+            layer.Linear(latent_dimension, 16 * 16 * base_channels),
             neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan()),
         )
         layers = OrderedDict(
             [
                 (
                     "convt_0",
-                    nn.LazyConvTranspose2d(
+                    layer.ConvTranspose2d(
+                        16 * 16 * base_channels,
                         base_channels,
                         kernel_size=3,
                         stride=2,
@@ -95,13 +98,13 @@ class Decoder(nn.Module):
                         output_padding=1,
                     ),
                 ),
-                ("norm_0", nn.LazyBatchNorm2d()),
+                ("norm_0", layer.BatchNorm2d(base_channels)),
                 ("LIF_0", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
-                ("dropout_0", nn.Dropout(0.05)),
+                ("dropout_0", layer.Dropout(0.05)),
                 (
                     "convt_1",
-                    nn.LazyConvTranspose2d(
-                        num_input_channels, kernel_size=3, padding=1
+                    layer.ConvTranspose2d(
+                        base_channels, num_input_channels, kernel_size=3, padding=1
                     ),
                 ),
                 ("LIF_1", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
@@ -111,6 +114,8 @@ class Decoder(nn.Module):
             layers.pop("norm_0")
             layers.pop("dropout_0")
         self.net = nn.Sequential(layers)
+
+        functional.set_step_mode(self, step_mode="m")
 
     def forward(self, x: torch.Tensor):
         x_seq = x.unsqueeze(0).repeat(self.time_steps, 1, 1)
