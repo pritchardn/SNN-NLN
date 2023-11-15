@@ -16,6 +16,7 @@ from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
+from models_snn_direct import SDAutoEncoder, SDDiscriminator
 from plotting import plot_intermediate_images, plot_loss_history
 from utils import generate_model_name, save_json
 
@@ -194,24 +195,42 @@ def main(config_vals: dict):
         get_orig=True,
     )
     # Create model
-    auto_encoder = AutoEncoder(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"],
-        config_vals["regularize"],
-    ).to(DEVICE)
+    if config_vals["model"] == "SDDAE":
+        auto_encoder = SDAutoEncoder(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+            config_vals["time_length"],
+            2.0
+        ).to(DEVICE)
+        discriminator = SDDiscriminator(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+            config_vals["time_length"],
+            2.0
+        ).to(DEVICE)
+    else:
+        auto_encoder = AutoEncoder(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+        ).to(DEVICE)
+        discriminator = Discriminator(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+        ).to(DEVICE)
     auto_encoder.eval()
     for _, (shape_test, _) in enumerate(test_dataset):
         auto_encoder(shape_test.to(DEVICE))
         break
     summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
-    discriminator = Discriminator(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"],
-        config_vals["regularize"],
-    ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
         auto_encoder.parameters(), lr=config_vals["ae_learning_rate"]
@@ -312,8 +331,11 @@ def main_standard():
     sweep = False
     num_layers_vals = [2, 3]
     rfi_exclusion_vals = [None, "rfi_stations", "rfi_dtv", "rfi_impulse", "rfi_scatter"]
-    dataset = "LOFAR"
+    dataset = "HERA"
+    model = "SDDAE"
     config_vals = get_dataset_params(dataset)
+    config_vals["model"] = model
+    config_vals["time_length"] = 32
     # config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
