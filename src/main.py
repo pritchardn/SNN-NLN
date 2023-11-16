@@ -32,6 +32,9 @@ def train_step(
     """
     Executes a single training step for the autoencoder, discriminator and generator.
     """
+    ae_optimizer.zero_grad()
+    disc_optimizer.zero_grad()
+    generator_optimizer.zero_grad()
     auto_encoder.train()
     discriminator.train()
     x_hat = auto_encoder(x_images)
@@ -42,19 +45,27 @@ def train_step(
     disc_loss = discriminator_loss(real_output, fake_output, 1)
     gen_loss = generator_loss(fake_output, 1)
 
-    del fake_output
-    del real_output
-    del x_hat
-
     auto_loss.backward(retain_graph=True)
     disc_loss.backward(retain_graph=True)
     gen_loss.backward()
+
+    del fake_output
+    del real_output
+    del x_hat
 
     ae_optimizer.step()
     disc_optimizer.step()
     generator_optimizer.step()
 
-    return auto_loss, disc_loss, gen_loss
+    auto_loss_val = auto_loss.detach().item()
+    disc_loss_val = disc_loss.detach().item()
+    gen_loss_val = gen_loss.detach().item()
+
+    del auto_loss
+    del disc_loss
+    del gen_loss
+
+    return auto_loss_val, disc_loss_val, gen_loss_val
 
 
 def train_model(
@@ -97,12 +108,9 @@ def train_model(
                 disc_optimizer,
                 generator_optimizer,
             )
-            ae_optimizer.zero_grad()
-            disc_optimizer.zero_grad()
-            generator_optimizer.zero_grad()
-            running_ae_loss += ae_loss_val.item() * len(x_images)
-            running_disc_loss += disc_loss.item() * len(x_images)
-            running_gen_loss += gen_loss.item() * len(x_images)
+            running_ae_loss += ae_loss_val * len(x_images)
+            running_disc_loss += disc_loss * len(x_images)
+            running_gen_loss += gen_loss * len(x_images)
 
         interim_ae_loss = running_ae_loss / len(train_dataset)
         interim_disc_loss = running_disc_loss / len(train_dataset)
@@ -195,7 +203,7 @@ def main(config_vals: dict):
         get_orig=True,
     )
     # Create model
-    if config_vals["model"] == "SDDAE":
+    if config_vals["model_type"] == "SDDAE":
         auto_encoder = SDAutoEncoder(
             1,
             config_vals["num_filters"],
@@ -225,11 +233,11 @@ def main(config_vals: dict):
             config_vals["latent_dimension"],
             config_vals["regularize"],
         ).to(DEVICE)
-    auto_encoder.eval()
-    for _, (shape_test, _) in enumerate(test_dataset):
-        auto_encoder(shape_test.to(DEVICE))
-        break
-    summary(auto_encoder, (1, 32, 32))
+        auto_encoder.eval()
+        for _, (shape_test, _) in enumerate(test_dataset):
+            auto_encoder(shape_test.to(DEVICE))
+            break
+        summary(auto_encoder, (1, 32, 32))
     auto_encoder.train()
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
@@ -334,9 +342,9 @@ def main_standard():
     dataset = "HERA"
     model = "SDDAE"
     config_vals = get_dataset_params(dataset)
-    config_vals["model"] = model
+    config_vals["model_type"] = model
     config_vals["time_length"] = 32
-    # config_vals["threshold"] = None
+    config_vals["threshold"] = None
     if sweep:
         for num_layers in num_layers_vals:
             for rfi_excluded in rfi_exclusion_vals:

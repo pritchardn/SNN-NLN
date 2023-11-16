@@ -60,9 +60,8 @@ class Encoder(nn.Module):
         functional.set_step_mode(self, step_mode="m")
 
     def forward(self, x: torch.Tensor):
-        x_seq = x.unsqueeze(0).repeat(self.time_steps, 1, 1, 1, 1)
-        x_seq = self.net(x_seq)
-        return x_seq
+        functional.reset_net(self)
+        return self.net(x.unsqueeze(0).repeat(self.time_steps, 1, 1, 1, 1))
 
 
 class Decoder(nn.Module):
@@ -91,7 +90,7 @@ class Decoder(nn.Module):
                 (
                     "convt_0",
                     layer.ConvTranspose2d(
-                        16 * 16 * base_channels,
+                        base_channels,
                         base_channels,
                         kernel_size=3,
                         stride=2,
@@ -119,10 +118,8 @@ class Decoder(nn.Module):
         functional.set_step_mode(self, step_mode="m")
 
     def forward(self, x: torch.Tensor):
-        x_seq = self.linear(x)
-        x_seq = x_seq.reshape(self.time_steps, -1, 16, 16)
-        x_seq = self.net(x_seq)
-        return x_seq
+        functional.reset_net(self)
+        return self.net(self.linear(x).reshape(self.time_steps, x.shape[1], -1, 16, 16))
 
 
 class SDAutoEncoder(nn.Module):
@@ -161,9 +158,8 @@ class SDAutoEncoder(nn.Module):
         """
         Forward pass for the autoencoder.
         """
-        latent = self.encoder(input_data)
-        output = self.decoder(latent)
-        return output
+        functional.reset_net(self)
+        return nn.functional.normalize(torch.sum(self.decoder(self.encoder(input_data)), dim=0))
 
 
 class SDDiscriminator(nn.Module):
@@ -181,6 +177,7 @@ class SDDiscriminator(nn.Module):
         tau: float,
     ):
         super().__init__()
+        self.time_steps = time_steps
         self.encoder = Encoder(
             num_input_channels,
             base_channels,
@@ -193,12 +190,11 @@ class SDDiscriminator(nn.Module):
         self.output = nn.LazyLinear(1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, input_data):
+    def forward(self, x: torch.Tensor):
         """
         Forward pass for the discriminator.
         """
-        latent = self.encoder(input_data)
-        classification = self.flatten(latent)
-        output = self.output(classification)
-        output = self.sigmoid(output)
-        return latent, output
+        functional.reset_net(self)
+        latent = self.encoder(x)
+        latent = nn.functional.normalize(torch.sum(latent, dim=0))
+        return latent, None
