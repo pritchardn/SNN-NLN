@@ -117,7 +117,7 @@ def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
     n_patches = original_size // kernel_size
     recon = np.empty(
         [
-            images.shape[0] // n_patches ** 2,
+            images.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             images.shape[1],
@@ -148,14 +148,14 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     Reconstructs patches into images. Assumes that the images are square and single channel.
     """
     n_patches = original_size // patch_size
-    recon = np.empty([images.shape[0] // n_patches ** 2, n_patches ** 2])
+    recon = np.empty([images.shape[0] // n_patches**2, n_patches**2])
 
-    start, end = 0, n_patches ** 2
+    start, end = 0, n_patches**2
 
-    for j, _ in enumerate(range(0, images.shape[0], n_patches ** 2)):
+    for j, _ in enumerate(range(0, images.shape[0], n_patches**2)):
         recon[j, ...] = images[start:end, ...]
         start = end
-        end += n_patches ** 2
+        end += n_patches**2
     return recon
 
 

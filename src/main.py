@@ -293,7 +293,7 @@ def main(config_vals: dict):
             test_masks_original,
             config_vals["patch_size"],
             train_x[0].shape[0],
-            config_vals["inference_time_length"]
+            config_vals["inference_time_length"],
         )
         save_json(snln_metrics, output_dir, "metrics")
     else:

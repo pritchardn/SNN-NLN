@@ -46,7 +46,7 @@ class Encoder(nn.Module):
                 ("LIF_1", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
                 ("dropout_1", layer.Dropout(0.05)),
                 ("flatten", layer.Flatten()),
-                ("linear", layer.Linear((base_channels ** 3) // 4, latent_dimension)),
+                ("linear", layer.Linear((base_channels**3) // 4, latent_dimension)),
                 ("LIF_2", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
             ]
         )

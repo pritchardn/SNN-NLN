@@ -8,7 +8,14 @@ def snln(x_hat, test_dataset):
     return images - x_hat
 
 
-def evaluate_snn_rate(model: SDAutoEncoder, test_dataset, test_masks_original, patch_size, original_size, time_length):
+def evaluate_snn_rate(
+    model: SDAutoEncoder,
+    test_dataset,
+    test_masks_original,
+    patch_size,
+    original_size,
+    time_length,
+):
     """
     Evaluates rate-based SNN.
     """

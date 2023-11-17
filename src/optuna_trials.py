@@ -47,7 +47,9 @@ def run_trial(trial: optuna.Trial, dataset, model="DAE"):
         "model_type": model,
         "regularize": trial.suggest_categorical("regularize", [True, False]),
         "excluded_rfi": None,
-        "time_length": None if model == "DAE" else trial.suggest_int("time_length", 1, 512),
+        "time_length": None
+        if model == "DAE"
+        else trial.suggest_int("time_length", 1, 512),
         "average_n": None,
         "tau": None if model == "DAE" else trial.suggest_float("tau", 1.0, 3.0),
         "trial": trial._trial_id,
@@ -179,7 +181,7 @@ def run_trial(trial: optuna.Trial, dataset, model="DAE"):
             test_masks_original,
             config_vals["patch_size"],
             train_x[0].shape[0],
-            config_vals["inference_time_length"]
+            config_vals["inference_time_length"],
         )
     else:
         metrics = evaluate_model(

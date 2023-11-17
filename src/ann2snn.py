@@ -261,7 +261,7 @@ def reconstruct_snn_inference(
     n_patches = original_size // kernel_size
     reconstruction = np.empty(
         [
-            transpose.shape[0] // n_patches ** 2,
+            transpose.shape[0] // n_patches**2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             transpose.shape[-2],
