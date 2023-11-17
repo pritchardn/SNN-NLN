@@ -12,13 +12,15 @@ from optuna.trial import TrialState
 from config import DEVICE, get_output_dir
 from data import process_into_dataset, load_data
 from evaluation import evaluate_model
+from evaluation_snn import evaluate_snn_rate
+from models_snn_direct import SDAutoEncoder, SDDiscriminator
 from plotting import plot_loss_history
 from main import train_model
 from models import AutoEncoder, Discriminator
 from utils import generate_model_name, save_json
 
 
-def run_trial(trial: optuna.Trial, dataset):
+def run_trial(trial: optuna.Trial, dataset, model="DAE"):
     """
     Trial for optuna hyperparameter optimization.
     Is effectively a condensed version of main.py.
@@ -42,13 +44,15 @@ def run_trial(trial: optuna.Trial, dataset):
         "threshold": 10,
         "anomaly_type": "MISO",
         "dataset": dataset,
-        "model_type": "DAE",
+        "model_type": model,
         "regularize": trial.suggest_categorical("regularize", [True, False]),
         "excluded_rfi": None,
-        "time_length": None,
+        "time_length": None if model == "DAE" else trial.suggest_int("time_length", 1, 512),
         "average_n": None,
+        "tau": None if model == "DAE" else trial.suggest_float("tau", 1.0, 3.0),
         "trial": trial._trial_id,
     }
+    config_vals["inference_time_length"] = config_vals["time_length"]
     config_vals["model_name"] = generate_model_name(config_vals)
     print(json.dumps(config_vals, indent=4))
     output_dir = (
@@ -94,18 +98,36 @@ def run_trial(trial: optuna.Trial, dataset):
         get_orig=True,
     )
     # Create model
-    auto_encoder = AutoEncoder(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"],
-        config_vals["regularize"],
-    ).to(DEVICE)
-    discriminator = Discriminator(
-        1,
-        config_vals["num_filters"],
-        config_vals["latent_dimension"],
-        config_vals["regularize"],
-    ).to(DEVICE)
+    if config_vals["model_type"] == "SDDAE":
+        auto_encoder = SDAutoEncoder(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+            config_vals["time_length"],
+            config_vals["tau"],
+        ).to(DEVICE)
+        discriminator = SDDiscriminator(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+            config_vals["time_length"],
+            config_vals["tau"],
+        ).to(DEVICE)
+    else:
+        auto_encoder = AutoEncoder(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+        ).to(DEVICE)
+        discriminator = Discriminator(
+            1,
+            config_vals["num_filters"],
+            config_vals["latent_dimension"],
+            config_vals["regularize"],
+        ).to(DEVICE)
     # Create optimizer
     ae_optimizer = getattr(torch.optim, config_vals["optimizer"])(
         auto_encoder.parameters(), lr=config_vals["ae_learning_rate"]
@@ -117,61 +139,75 @@ def run_trial(trial: optuna.Trial, dataset):
         auto_encoder.decoder.parameters(), lr=config_vals["gen_learning_rate"]
     )
     # Train model
-    (
-        f1_score,
-        auto_encoder,
-        discriminator,
-        ae_loss_history,
-        disc_loss_history,
-        gen_loss_history,
-    ) = train_model(
-        auto_encoder,
-        discriminator,
-        train_dataset,
-        ae_optimizer,
-        disc_optimizer,
-        generator_optimizer,
-        config_vals["epochs"],
-        config_vals["model_type"],
-        output_dir,
-        config_vals=config_vals,
-        test_dataset=test_dataset,
-        test_masks_original=test_masks_original,
-        train_x=train_x,
-        trial=trial,
-        unshuffled_train_dataset=unshuffled_train_dataset,
-    )
+    try:
+        (
+            f1_score,
+            auto_encoder,
+            discriminator,
+            ae_loss_history,
+            disc_loss_history,
+            gen_loss_history,
+        ) = train_model(
+            auto_encoder,
+            discriminator,
+            train_dataset,
+            ae_optimizer,
+            disc_optimizer,
+            generator_optimizer,
+            config_vals["epochs"],
+            config_vals["model_type"],
+            output_dir,
+            config_vals=config_vals,
+            test_dataset=test_dataset,
+            test_masks_original=test_masks_original,
+            train_x=train_x,
+            trial=trial,
+            unshuffled_train_dataset=unshuffled_train_dataset,
+        )
+    except RuntimeError as e:
+        print(e)
+        return 0.0
     auto_encoder.eval()
     discriminator.eval()
     # Plot loss history
     plot_loss_history(ae_loss_history, disc_loss_history, gen_loss_history, output_dir)
     # Test model
-    metrics = evaluate_model(
-        auto_encoder,
-        test_masks_original,
-        test_dataset,
-        unshuffled_train_dataset,
-        config_vals.get("neighbours"),
-        config_vals.get("latent_dimension"),
-        train_x[0].shape[0],
-        config_vals.get("patch_size"),
-        config_vals["model_name"],
-        config_vals["model_type"],
-        config_vals.get("anomaly_type"),
-        config_vals.get("dataset"),
-    )
+    if config_vals["model_type"] == "SDDAE":
+        metrics, _, _ = evaluate_snn_rate(
+            auto_encoder,
+            test_dataset,
+            test_masks_original,
+            config_vals["patch_size"],
+            train_x[0].shape[0],
+            config_vals["inference_time_length"]
+        )
+    else:
+        metrics = evaluate_model(
+            auto_encoder,
+            test_masks_original,
+            test_dataset,
+            unshuffled_train_dataset,
+            config_vals.get("neighbours"),
+            config_vals.get("latent_dimension"),
+            train_x[0].shape[0],
+            config_vals.get("patch_size"),
+            config_vals["model_name"],
+            config_vals["model_type"],
+            config_vals.get("anomaly_type"),
+            config_vals.get("dataset"),
+        )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_json(config_vals, output_dir, "config")
     f1_score = metrics["f1"]
     return f1_score
 
 
-def main_optuna(n_trials, dataset):
+def main_optuna(n_trials, dataset, model="DAE"):
     """
     Main function for optuna hyperparameter optimization.
     """
     study = optuna.create_study(direction="maximize")
-    study.optimize(lambda trial: run_trial(trial, dataset), n_trials=n_trials)
+    study.optimize(lambda trial: run_trial(trial, dataset, model), n_trials=n_trials)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
@@ -209,4 +245,4 @@ def main_optuna(n_trials, dataset):
 
 
 if __name__ == "__main__":
-    main_optuna(1, "HERA")
+    main_optuna(1, "HERA", "SDDAE")
