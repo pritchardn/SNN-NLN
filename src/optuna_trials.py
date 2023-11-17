@@ -27,7 +27,7 @@ def run_trial(trial: optuna.Trial, dataset, model="DAE"):
     :return: MSE: float
     """
     config_vals = {
-        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128]),
+        "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32]),
         "epochs": trial.suggest_int("epochs", 2, 128),
         "ae_learning_rate": trial.suggest_float("ae_learning_rate", 1e-4, 100e-4),
         "gen_learning_rate": trial.suggest_float("gen_learning_rate", 1e-4, 100e-4),

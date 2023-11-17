@@ -8,7 +8,7 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-VERBOSE = True
+VERBOSE = False
 
 HERA_PARAMS = {
     "batch_size": 32,
