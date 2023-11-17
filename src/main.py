@@ -211,7 +211,7 @@ def main(config_vals: dict):
             config_vals["latent_dimension"],
             config_vals["regularize"],
             config_vals["time_length"],
-            2.0,
+            config_vals["tau"],
         ).to(DEVICE)
         discriminator = SDDiscriminator(
             1,
@@ -219,7 +219,7 @@ def main(config_vals: dict):
             config_vals["latent_dimension"],
             config_vals["regularize"],
             config_vals["time_length"],
-            2.0,
+            config_vals["tau"],
         ).to(DEVICE)
     else:
         auto_encoder = AutoEncoder(

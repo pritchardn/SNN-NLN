@@ -32,6 +32,7 @@ HERA_PARAMS = {
     "time_length": None,
     "average_n": None,
     "inference_time_length": None,
+    "tau": 2.0,
     "trial": 1,
 }
 
@@ -58,6 +59,7 @@ LOFAR_PARAMS = {
     "average_n": None,
     "convert_threshold": None,
     "inference_time_length": None,
+    "tau": 2.0,
     "trial": 1,
 }
 
@@ -83,6 +85,7 @@ TABASCAL_PARAMS = {
     "time_length": None,
     "average_n": None,
     "inference_time_length": None,
+    "tau": 2.0,
     "trial": 1,
 }
 
