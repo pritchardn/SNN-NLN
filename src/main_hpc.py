@@ -21,6 +21,7 @@ def main_hpc():
     task_type = os.environ.get("TASK_TYPE")
     num_trials = int(os.environ.get("NUM_TRIALS"))
     dataset = os.environ.get("DATASET")
+    model_type = os.environ.get("MODEL_TYPE", "DAE")
     config_vals = config.get_dataset_params(dataset)
     if task_type == "NOISE":
         rfi_exclusion_vals = [
@@ -70,10 +71,11 @@ def main_hpc():
         )
         sys.exit(0)
     elif task_type == "OPTUNA":
-        main_optuna(num_trials, dataset)
+        main_optuna(num_trials, dataset, model_type)
         sys.exit(0)
     else:  # Standard
         config_vals["trial"] = task_id + 1
+        config_vals["model_type"] = model_type
     print(json.dumps(config_vals, indent=4))
     print(config.get_output_dir())
     print(config.get_data_dir())
