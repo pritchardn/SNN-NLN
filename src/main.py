@@ -11,6 +11,7 @@ import torch
 from torchsummary import summary
 from tqdm import tqdm
 
+from ann2snn import evaluate_snn
 from config import DEVICE, get_dataset_params, get_output_dir, VERBOSE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
@@ -285,20 +286,32 @@ def main(config_vals: dict):
         limit=config_vals.get("limit", None),
     )
     # Test model
-    evaluate_model(
-        auto_encoder,
-        test_masks_original,
-        test_dataset,
-        train_dataset,
-        config_vals.get("neighbours"),
-        config_vals.get("latent_dimension"),
-        train_x[0].shape[0],
-        config_vals.get("patch_size"),
-        config_vals["model_name"],
-        config_vals["model_type"],
-        config_vals.get("anomaly_type"),
-        config_vals.get("dataset"),
-    )
+    if config_vals["model_type"] == "SDDAE":
+        snln_metrics, _, _ = evaluate_snn(
+            auto_encoder,
+            test_dataset,
+            test_masks_original,
+            config_vals["patch_size"],
+            train_x[0].shape[0],
+            config_vals["time_length"],
+            config_vals["average_n"]
+        )
+        save_json(snln_metrics, output_dir, "metrics")
+    else:
+        evaluate_model(
+            auto_encoder,
+            test_masks_original,
+            test_dataset,
+            train_dataset,
+            config_vals.get("neighbours"),
+            config_vals.get("latent_dimension"),
+            train_x[0].shape[0],
+            config_vals.get("patch_size"),
+            config_vals["model_name"],
+            config_vals["model_type"],
+            config_vals.get("anomaly_type"),
+            config_vals.get("dataset"),
+        )
     torch.save(auto_encoder.state_dict(), os.path.join(output_dir, "autoencoder.pt"))
     save_json(config_vals, output_dir, "config")
 
