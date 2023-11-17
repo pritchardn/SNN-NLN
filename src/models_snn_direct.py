@@ -159,7 +159,7 @@ class SDAutoEncoder(nn.Module):
         Forward pass for the autoencoder.
         """
         functional.reset_net(self)
-        return nn.functional.normalize(torch.sum(self.decoder(self.encoder(input_data)), dim=0))
+        return torch.mean(self.decoder(self.encoder(input_data)), dim=0)
 
 
 class SDDiscriminator(nn.Module):
@@ -196,5 +196,5 @@ class SDDiscriminator(nn.Module):
         """
         functional.reset_net(self)
         latent = self.encoder(x)
-        latent = nn.functional.normalize(torch.sum(latent, dim=0))
+        latent = torch.mean(latent, dim=0)
         return latent, None
