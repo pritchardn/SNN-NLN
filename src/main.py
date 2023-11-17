@@ -11,10 +11,10 @@ import torch
 from torchsummary import summary
 from tqdm import tqdm
 
-from ann2snn import evaluate_snn
 from config import DEVICE, get_dataset_params, get_output_dir, VERBOSE
 from data import load_data, process_into_dataset
 from evaluation import evaluate_model, mid_run_calculate_metrics
+from evaluation_snn import evaluate_snn_rate
 from loss import ae_loss, generator_loss, discriminator_loss
 from models import AutoEncoder, Discriminator
 from models_snn_direct import SDAutoEncoder, SDDiscriminator
@@ -287,14 +287,13 @@ def main(config_vals: dict):
     )
     # Test model
     if config_vals["model_type"] == "SDDAE":
-        snln_metrics, _, _ = evaluate_snn(
+        snln_metrics, _, _ = evaluate_snn_rate(
             auto_encoder,
             test_dataset,
             test_masks_original,
             config_vals["patch_size"],
             train_x[0].shape[0],
-            config_vals["time_length"],
-            config_vals["average_n"]
+            config_vals["inference_time_length"]
         )
         save_json(snln_metrics, output_dir, "metrics")
     else:

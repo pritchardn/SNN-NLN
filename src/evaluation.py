@@ -17,6 +17,7 @@ from sklearn.metrics import (
     balanced_accuracy_score,
 )
 from torch import nn
+from tqdm import tqdm
 
 from config import DEVICE, get_output_dir
 from data import reconstruct_patches, reconstruct_latent_patches
@@ -40,7 +41,7 @@ def infer(
             dtype=np.float32,
         )
     start = 0
-    for image_batch, _ in dataset:
+    for image_batch, _ in tqdm(dataset):
         image_batch = image_batch.to(DEVICE)
         predictions = model(image_batch).cpu().detach().numpy()
         output[start : start + len(predictions), ...] = predictions
@@ -196,6 +197,7 @@ def _calculate_metrics(test_masks_orig_recon: np.ndarray, error_recon: np.ndarra
     if error_recon.shape[1] == 1 and test_masks_orig_recon.shape[1] == 1:
         error_recon = np.moveaxis(error_recon, 1, -1)
         test_masks_orig_recon = np.moveaxis(test_masks_orig_recon, 1, -1)
+    error_recon = np.nan_to_num(error_recon)
     false_pos_rate, true_pos_rate, _ = roc_curve(
         test_masks_orig_recon.flatten() > 0, error_recon.flatten()
     )

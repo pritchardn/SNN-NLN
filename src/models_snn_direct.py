@@ -161,6 +161,10 @@ class SDAutoEncoder(nn.Module):
         functional.reset_net(self)
         return torch.mean(self.decoder(self.encoder(input_data)), dim=0)
 
+    def change_timestep(self, new_timestep):
+        self.encoder.time_steps = new_timestep
+        self.decoder.time_steps = new_timestep
+
 
 class SDDiscriminator(nn.Module):
     """
