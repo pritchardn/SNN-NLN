@@ -7,7 +7,7 @@
 #SBATCH --time=168:00:00
 #SBATCH --output=snn_%A_%a.out
 #SBATCH --error=snn_%A_%a.err
-#SBATCH --array=0-0%2
+#SBATCH --array=0-0%1
 #SBATCH --gres=gpu:1
 
 cd /home/npritchard/SNN-NLN/src
