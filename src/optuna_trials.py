@@ -49,7 +49,7 @@ def run_trial(trial: optuna.Trial, dataset, model="DAE"):
         "excluded_rfi": None,
         "time_length": None
         if model == "DAE"
-        else trial.suggest_int("time_length", 1, 512),
+        else trial.suggest_int("time_length", 1, 128),
         "average_n": None,
         "tau": None if model == "DAE" else trial.suggest_float("tau", 1.0, 3.0),
         "trial": trial._trial_id,
