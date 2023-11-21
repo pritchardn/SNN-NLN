@@ -7,7 +7,6 @@ import os
 
 import optuna
 import torch
-
 from torchsummary import summary
 from tqdm import tqdm
 
@@ -132,16 +131,26 @@ def train_model(
             and trial is not None
             and unshuffled_train_dataset is not None
         ):
-            metrics = mid_run_calculate_metrics(
-                auto_encoder,
-                test_masks_original,
-                test_dataset,
-                unshuffled_train_dataset,
-                config_vals["neighbours"],
-                config_vals["latent_dimension"],
-                train_x[0].shape[0],
-                config_vals["patch_size"],
-            )
+            if config_vals["model_type"] == "SDDAE":
+                metrics, _, _ = evaluate_snn_rate(
+                    auto_encoder,
+                    test_dataset,
+                    test_masks_original,
+                    config_vals["patch_size"],
+                    train_x[0].shape[0],
+                    config_vals["inference_time_length"],
+                )
+            else:
+                metrics = mid_run_calculate_metrics(
+                    auto_encoder,
+                    test_masks_original,
+                    test_dataset,
+                    unshuffled_train_dataset,
+                    config_vals["neighbours"],
+                    config_vals["latent_dimension"],
+                    train_x[0].shape[0],
+                    config_vals["patch_size"],
+                )
             trial.report(metrics["f1"], epoch)
             print(f"f1:\t{metrics['f1']}")
             if trial.should_prune():
