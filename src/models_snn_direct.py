@@ -46,7 +46,10 @@ class Encoder(nn.Module):
                 ("LIF_1", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
                 ("dropout_1", layer.Dropout(0.05)),
                 ("flatten", layer.Flatten()),
-                ("linear", layer.Linear((base_channels**3) // 4, latent_dimension)),
+                (
+                    "linear",
+                    layer.Linear(base_channels * 64, latent_dimension),
+                ),  # bc * 8 * 8
                 ("LIF_2", neuron.LIFNode(tau=tau, surrogate_function=surrogate.ATan())),
             ]
         )
@@ -159,7 +162,9 @@ class SDAutoEncoder(nn.Module):
         Forward pass for the autoencoder.
         """
         functional.reset_net(self)
-        return torch.mean(self.decoder(self.encoder(input_data)), dim=0)
+        x_hat = self.encoder(input_data)
+        output = self.decoder(x_hat)
+        return torch.mean(output, dim=0)
 
     def change_timestep(self, new_timestep):
         self.encoder.time_steps = new_timestep
