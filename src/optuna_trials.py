@@ -216,41 +216,43 @@ def main_optuna(n_trials, dataset, model="DAE", study_string=None):
         study = optuna.load_study(study_name=study_string, storage=storage)
     else:
         study = optuna.create_study(direction="maximize")
+    print(f"Torch using {DEVICE}")
     study.optimize(lambda trial: run_trial(trial, dataset, model), n_trials=n_trials)
-    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
-    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+    if not study_string:
+        pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+        complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
-    print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
+        print("Study statistics: ")
+        print("  Number of finished trials: ", len(study.trials))
+        print("  Number of pruned trials: ", len(pruned_trials))
+        print("  Number of complete trials: ", len(complete_trials))
 
-    print("Best trial:")
-    trial = study.best_trial
+        print("Best trial:")
+        trial = study.best_trial
 
-    print("  Value: ", trial.value)
+        print("  Value: ", trial.value)
 
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print(f"    {key}: {value}")
-    with open(
-        f"{get_output_dir()}{os.sep}best_trial.json", "w", encoding="utf-8"
-    ) as ofile:
-        json.dump(trial.params, ofile, indent=4)
-    with open(
-        f"{get_output_dir()}{os.sep}completed_trials.json", "w", encoding="utf-8"
-    ) as ofile:
-        completed_trials_out = []
-        for trial_params in complete_trials:
-            completed_trials_out.append(trial_params.params)
-        json.dump(completed_trials_out, ofile, indent=4)
-    with open(
-        f"{get_output_dir()}{os.sep}pruned_trials.json", "w", encoding="utf-8"
-    ) as ofile:
-        pruned_trials_out = []
-        for trial_params in pruned_trials:
-            pruned_trials_out.append(trial_params.params)
-        json.dump(pruned_trials_out, ofile, indent=4)
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print(f"    {key}: {value}")
+        with open(
+            f"{get_output_dir()}{os.sep}best_trial.json", "w", encoding="utf-8"
+        ) as ofile:
+            json.dump(trial.params, ofile, indent=4)
+        with open(
+            f"{get_output_dir()}{os.sep}completed_trials.json", "w", encoding="utf-8"
+        ) as ofile:
+            completed_trials_out = []
+            for trial_params in complete_trials:
+                completed_trials_out.append(trial_params.params)
+            json.dump(completed_trials_out, ofile, indent=4)
+        with open(
+            f"{get_output_dir()}{os.sep}pruned_trials.json", "w", encoding="utf-8"
+        ) as ofile:
+            pruned_trials_out = []
+            for trial_params in pruned_trials:
+                pruned_trials_out.append(trial_params.params)
+            json.dump(pruned_trials_out, ofile, indent=4)
 
 
 if __name__ == "__main__":
