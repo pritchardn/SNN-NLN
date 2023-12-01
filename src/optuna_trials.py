@@ -9,7 +9,7 @@ import optuna
 import torch
 from optuna.trial import TrialState
 
-from config import DEVICE, get_output_dir
+from config import DEVICE, get_output_dir, get_optuna_db
 from data import process_into_dataset, load_data
 from evaluation import evaluate_model
 from evaluation_snn import evaluate_snn_rate
@@ -204,11 +204,18 @@ def run_trial(trial: optuna.Trial, dataset, model="DAE"):
     return f1_score
 
 
-def main_optuna(n_trials, dataset, model="DAE"):
+def main_optuna(n_trials, dataset, model="DAE", study_string=None):
     """
     Main function for optuna hyperparameter optimization.
     """
-    study = optuna.create_study(direction="maximize")
+    if study_string:
+        storage = optuna.storages.RDBStorage(
+            url=get_optuna_db(),
+            engine_kwargs={"pool_pre_ping": True},
+        )
+        study = optuna.load_study(study_name=study_string, storage=storage)
+    else:
+        study = optuna.create_study(direction="maximize")
     study.optimize(lambda trial: run_trial(trial, dataset, model), n_trials=n_trials)
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -247,4 +254,4 @@ def main_optuna(n_trials, dataset, model="DAE"):
 
 
 if __name__ == "__main__":
-    main_optuna(1, "HERA", "SDDAE")
+    main_optuna(1, "HERA", "SDDAE", study_string="snn-hera")

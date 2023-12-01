@@ -20,6 +20,8 @@ export DATA_DIR="/home/npritchard/data"
 export INPUT_DIR="/home/npritchard/data"
 export DATASET="HERA"
 export MODEL_TYPE="SDDAE"
+export OPTUNA_DB="postgresql://postgres:8P39oTCtWNexULR@snn-optuna.fly.dev:5432/optuna-test"
+export OPTUNA_NAME="snn-hera"
 
 python3 main_hpc.py
 

@@ -71,7 +71,8 @@ def main_hpc():
         )
         sys.exit(0)
     elif task_type == "OPTUNA":
-        main_optuna(num_trials, dataset, model_type)
+        study_string = os.environ.get("OPTUNA_NAME", None)
+        main_optuna(num_trials, dataset, model_type, study_string=study_string)
         sys.exit(0)
     else:  # Standard
         config_vals["trial"] = task_id + 1

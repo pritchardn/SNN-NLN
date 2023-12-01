@@ -114,3 +114,7 @@ def get_output_dir():
 
 def get_data_dir():
     return os.environ.get("DATA_DIR", "data")
+
+
+def get_optuna_db():
+    return os.environ.get("OPTUNA_DB", "sqlite:///optuna.db")
