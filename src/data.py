@@ -251,6 +251,8 @@ def process_into_dataset(
     :param get_orig: If true, input y_data will be returned back, else None.
     """
     x_data, y_data = limit_entries(x_data, y_data, limit)
+    x_data = np.moveaxis(x_data, 1, 2)
+    y_data = np.moveaxis(y_data, 1, 2)
     if get_orig:
         y_data_orig = copy.deepcopy(y_data)
     else:
