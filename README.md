@@ -1,9 +1,12 @@
 # SNN-NLN
-An SNN implementation of the NLN architecture for RFI detection.
+An SNN implementation of the NLN architecture for RFI detection. [Published in PASA](https://doi.org/10.1017/pasa.2024.27)
 
 
 [![DOI](https://zenodo.org/badge/633437547.svg)](https://zenodo.org/badge/latestdoi/633437547)
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/rfi-detection-with-spiking-neural-networks/semantic-segmentation-on-hera-rfi-detection)](https://paperswithcode.com/sota/semantic-segmentation-on-hera-rfi-detection?p=rfi-detection-with-spiking-neural-networks)
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/rfi-detection-with-spiking-neural-networks/semantic-segmentation-on-lofar-rfi-detection)](https://paperswithcode.com/sota/semantic-segmentation-on-lofar-rfi-detection?p=rfi-detection-with-spiking-neural-networks)
 
 Contains:
  - A PyTorch re-implementation of [this work](https://github.com/mesarcik/RFI-NLN) with 
