@@ -38,6 +38,9 @@ def clip_data(image_data, masks, mode="HERA"):
     elif mode == "LOFAR":
         max_threshold = 95
         min_threshold = 3
+    elif mode == "CHILES":  # TODO: Adjust
+        max_threshold = 95
+        min_threshold = 3
     else:  # mode == "TABASCAL"
         max_threshold = 95
         min_threshold = 3
@@ -52,7 +55,8 @@ def clip_data(image_data, masks, mode="HERA"):
     image_data = np.log(image_data)
     # Rescale
     minimum, maximum = np.min(image_data), np.max(image_data)
-    image_data = (image_data - minimum) / (maximum - minimum)
+
+    image_data = np.clip((image_data - minimum), 0.0, maximum) / (maximum - minimum)
     return image_data
 
 
@@ -75,6 +79,10 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
             strategy = aoflagger.load_strategy_file(
                 f"{get_data_dir()}{os.sep}flagging{os.sep}lofar-default-{threshold}.lua"
             )
+        elif mode == "CHILES":
+            strategy = aoflagger.load_strategy_file(
+                f"{get_data_dir()}{os.sep}flagging{os.sep}chiles-default.lua"
+            )
         elif mode == "TABASCAL":
             strategy = aoflagger.load_strategy_file(
                 f"{get_data_dir()}{os.sep}flagging{os.sep}meerkat-default.lua"
@@ -84,7 +92,7 @@ def flag_data(image_data, threshold: int = None, mode="HERA"):
         # LOAD data into AOFlagger structure
         for indx in tqdm(range(len(image_data))):
             _data = aoflagger.make_image_set(
-                image_data.shape[1], image_data.shape[2], 1
+                image_data.shape[2], image_data.shape[1], 1
             )
             _data.set_image_buffer(0, image_data[indx, ..., 0])  # Real values
 
@@ -117,7 +125,7 @@ def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
     n_patches = original_size // kernel_size
     recon = np.empty(
         [
-            images.shape[0] // n_patches**2,
+            images.shape[0] // n_patches ** 2,
             kernel_size * n_patches,
             kernel_size * n_patches,
             images.shape[1],
@@ -148,14 +156,14 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     Reconstructs patches into images. Assumes that the images are square and single channel.
     """
     n_patches = original_size // patch_size
-    recon = np.empty([images.shape[0] // n_patches**2, n_patches**2])
+    recon = np.empty([images.shape[0] // n_patches ** 2, n_patches ** 2])
 
-    start, end = 0, n_patches**2
+    start, end = 0, n_patches ** 2
 
-    for j, _ in enumerate(range(0, images.shape[0], n_patches**2)):
+    for j, _ in enumerate(range(0, images.shape[0], n_patches ** 2)):
         recon[j, ...] = images[start:end, ...]
         start = end
-        end += n_patches**2
+        end += n_patches ** 2
     return recon
 
 
@@ -214,8 +222,30 @@ def load_tabascal_data(data_path=get_data_dir(), num_sat: int = 2, num_ground: i
     return train_x, train_y, test_x, test_y, []
 
 
+def load_chiles_data(data_path=get_data_dir(), patch_size=32):
+    filepath = os.path.join(data_path, "13B-266.sb32005698.eb32212913.57536.86322461806.npy")
+    print(f"Loading Chiles data from {filepath}")
+    # Loaded in Stokes, Channels, nAntenna, nTime
+    data = np.load(filepath)
+    data = np.abs(data)  # Collapse complex element
+    data = data[0, :, :, :]  # Select single polarization
+    data = np.expand_dims(data, 0)  # Add channel dimension
+    data = np.moveaxis(data, 0, -1)  # Move channel to last axis
+    data = np.moveaxis(data, 1, 0)  # Move baselines to first axis
+    # Now pad
+    channel_pad = patch_size - data.shape[1] % patch_size
+    time_pad = patch_size - data.shape[2] % patch_size
+    data = np.pad(data, ((0, 0), (0, channel_pad), (0, time_pad), (0, 0)))
+    fake_flags = np.zeros_like(data, dtype=bool)
+    train_x, test_x = data, fake_flags
+    _, _, train_y, test_y = sklearn.model_selection.train_test_split(
+        data, fake_flags, test_size=0.2
+    )
+    return train_x.astype("float32"), train_y, test_x.astype("float32"), test_y, []
+
+
 def load_data(
-    config_vals, data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
+        config_vals, data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
 ):
     """
     Loads data from pickle files.
@@ -229,22 +259,24 @@ def load_data(
         return load_tabascal_data(
             data_path=data_path, num_sat=num_sat, num_ground=num_ground
         )
+    elif dataset == "CHILES":
+        return load_chiles_data(data_path=data_path)
     else:
         raise ValueError(f"Dataset {dataset} not supported.")
 
 
 def process_into_dataset(
-    x_data,
-    y_data,
-    batch_size,
-    mode,
-    shuffle=True,
-    limit=None,
-    threshold=None,
-    patch_size=None,
-    stride=None,
-    filter_rfi_patches=False,
-    get_orig=False,
+        x_data,
+        y_data,
+        batch_size,
+        mode,
+        shuffle=True,
+        limit=None,
+        threshold=None,
+        patch_size=None,
+        stride=None,
+        filter_rfi_patches=False,
+        get_orig=False,
 ):
     """
     Applies pre-processing steps to the data and returns a torch DataLoader.

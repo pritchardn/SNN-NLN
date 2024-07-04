@@ -83,6 +83,31 @@ TABASCAL_PARAMS = {
     "trial": 1,
 }
 
+CHILES_PARAMS = {
+    "batch_size": 128,
+    "epochs": 1,
+    "ae_learning_rate": 1e-4,
+    "gen_learning_rate": 1e-4,
+    "disc_learning_rate": 1e-4,
+    "optimizer": "Adam",
+    "num_layers": 2,
+    "latent_dimension": 64,
+    "num_filters": 32,
+    "neighbours": 20,
+    "patch_size": 32,
+    "patch_stride": 32,
+    "threshold": 10,
+    "anomaly_type": "MISO",
+    "dataset": "CHILES",
+    "model_type": "DAE",
+    "regularize": True,
+    "excluded_rfi": None,
+    "time_length": None,
+    "average_n": None,
+    "convert_threshold": None,
+    "trial": 1,
+}
+
 
 def get_dataset_params(dataset: str):
     if dataset == "HERA":
@@ -91,6 +116,8 @@ def get_dataset_params(dataset: str):
         return LOFAR_PARAMS
     elif dataset == "TABASCAL":
         return TABASCAL_PARAMS
+    elif dataset == "CHILES":
+        return CHILES_PARAMS
     else:
         raise ValueError(f"Unknown dataset {dataset}")
 

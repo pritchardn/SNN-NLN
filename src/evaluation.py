@@ -248,6 +248,7 @@ def nln_errors(
     """
     Calculates the error between the inferred neighbours of each test image in a whole dataset.
     """
+    # TODO: Make iterative so RAM isn't abused.
     test_images = test_dataset.dataset[:][0].cpu().detach().numpy()
     test_images_stacked = np.stack([test_images] * neighbours_idx.shape[-1], axis=1)
     neighbours = x_hat_train[neighbours_idx]
@@ -344,12 +345,19 @@ def calculate_metrics(
         combined_recon = np.clip(
             nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5, 1.0
         ) * np.array([d > np.percentile(d, 66) for d in dists_recon])
+    elif dataset == "CHILES":
+        combined_recon = np.clip(
+            nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5, 1.0
+        ) * np.array([d > np.percentile(d, 66) for d in dists_recon])
     else:
         raise ValueError("Dataset not implemented")
     combined_recon = np.nan_to_num(combined_recon)
-    combined_metrics = _calculate_metrics(test_masks_original, combined_recon)
-
-    dist_metrics = _calculate_metrics(test_masks_original_reconstructed, dists_recon)
+    try:
+        combined_metrics = _calculate_metrics(test_masks_original, combined_recon)
+        dist_metrics = _calculate_metrics(test_masks_original_reconstructed, dists_recon)
+    except ValueError:
+        combined_metrics = {}
+        dist_metrics = {}
 
     if not evaluate_run:
         test_images_recon = reconstruct_patches(
