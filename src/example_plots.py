@@ -86,10 +86,18 @@ def create_dataset_examples(input_dir: str, config_vals: dict):
     model = load_ann_model(input_dir, config_vals).to(DEVICE)
 
     test_masks_original_reconstructed = reconstruct_patches(
-        test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size
+        test_dataset.dataset[:][1].cpu().detach().numpy(),
+        test_y.shape[0],
+        original_size,
+        original_size,
+        patch_size,
     )
     test_orig_reconstructed = reconstruct_patches(
-        test_dataset.dataset[:][0].cpu().detach().numpy(), original_size, patch_size
+        test_dataset.dataset[:][0].cpu().detach().numpy(),
+        test_x.shape[0],
+        original_size,
+        original_size,
+        patch_size,
     )
     z_train = infer(model.encoder, train_dataset, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, latent_dimension, True)
@@ -103,7 +111,9 @@ def create_dataset_examples(input_dir: str, config_vals: dict):
     nln_error = nln_errors(
         test_dataset, x_hat, x_hat_train, neighbours_idx, neighbour_mask
     )
-    nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+    nln_error_recon = reconstruct_patches(
+        nln_error, test_x.shape[0], original_size, original_size, patch_size
+    )
 
     # Convert to SNN
     snn_model = convert_to_snn(model, test_dataset, "99.9%")

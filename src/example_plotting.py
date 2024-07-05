@@ -165,13 +165,13 @@ if __name__ == "__main__":
         break
     predictions = infer(model, test_dataset, 32)
     image_reconstructions = reconstruct_patches(
-        test_dataset.dataset[:2560][0].cpu().detach().numpy(), 512, 32
+        test_dataset.dataset[:2560][0].cpu().detach().numpy(), 80, 512, 512, 32
     )
     test_mask_reconstruction = reconstruct_patches(
-        test_dataset.dataset[:2560][1].cpu().detach().numpy(), 512, 32
+        test_dataset.dataset[:2560][1].cpu().detach().numpy(), 80, 512, 512, 32
     )
 
-    output_recon = reconstruct_patches(predictions[:2560], 512, 32)
+    output_recon = reconstruct_patches(predictions[:2560], 80, 512, 512, 32)
 
     image_batch_train, predictions_train, latent_train = None, None, None
     for image_batch_train, _ in train_dataset:
@@ -182,9 +182,9 @@ if __name__ == "__main__":
         break
     train_predictions = infer(model, train_dataset, 32)
     train_image_reconstructions = reconstruct_patches(
-        train_dataset.dataset[:2560][0].cpu().detach().numpy(), 512, 32
+        train_dataset.dataset[:2560][0].cpu().detach().numpy(), 80, 512, 512, 32
     )
-    train_output_recon = reconstruct_patches(train_predictions[:2560], 512, 32)
+    train_output_recon = reconstruct_patches(train_predictions[:2560], 80, 512, 512, 32)
 
     # Get NLN error
     z_train = infer(model.encoder, train_dataset, 32, True)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         test_dataset, predictions, x_hat_train, neighbours_idx, neighbour_mask
     )
     # Reconstruct NLN outputs
-    nln_error_recon = reconstruct_patches(nln_error[:2560], 512, 32)
+    nln_error_recon = reconstruct_patches(nln_error[:2560], 80, 512, 512, 32)
 
     # Plot inputs
     output_dir = os.path.join("outputs", "examples", "nln_inputs")
@@ -239,7 +239,9 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     inference = make_or_load_inference(model, test_dataset, output_dir)
     snln_error = snln(inference, test_dataset, 128, limit=2560)
-    snln_error_recon = reconstruct_patches(snln_error, 512, 32)
+    snln_error_recon = reconstruct_patches(
+        snln_error, snln_error.shape[0] // 32, 512, 512, 32
+    )
     snln_error_recon_binarized = np.where(snln_error_recon > 0.0, 1, 0.0)
 
     # Plot SNLN inference patches

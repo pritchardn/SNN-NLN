@@ -85,7 +85,7 @@ TABASCAL_PARAMS = {
 
 CHILES_PARAMS = {
     "batch_size": 128,
-    "epochs": 1,
+    "epochs": 10,
     "ae_learning_rate": 1e-4,
     "gen_learning_rate": 1e-4,
     "disc_learning_rate": 1e-4,

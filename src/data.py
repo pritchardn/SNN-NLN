@@ -115,35 +115,42 @@ def extract_patches(data: torch.Tensor, kernel_size: int, stride: int):
     return patches
 
 
-def reconstruct_patches(images: np.array, original_size: int, kernel_size: int):
+def reconstruct_patches(
+    images: np.array,
+    original_num_images: int,
+    original_channels: int,
+    original_timesteps: int,
+    kernel_size: int,
+):
     """
     Reconstructs patches into images. Implements the same functionality as found in tensorflow.
     Transposes the images to match the tensorflow implementation but returns the images in the
     original format.
     """
     transposed = images.transpose(0, 3, 2, 1)
-    n_patches = original_size // kernel_size
+    n_patches_channel = original_channels // kernel_size
+    n_patches_time = original_timesteps // kernel_size
     recon = np.empty(
         [
-            images.shape[0] // n_patches ** 2,
-            kernel_size * n_patches,
-            kernel_size * n_patches,
+            original_num_images,
+            original_channels,
+            original_timesteps,
             images.shape[1],
         ]
     )
 
     start, counter, indx, batch = 0, 0, 0, []
 
-    for i in range(n_patches, images.shape[0] + 1, n_patches):
+    for i in range(n_patches_channel, images.shape[0] + 1, n_patches_channel):
         batch.append(
             np.reshape(
                 np.stack(transposed[start:i, ...], axis=0),
-                (n_patches * kernel_size, kernel_size, images.shape[1]),
+                (n_patches_channel * kernel_size, kernel_size, images.shape[1]),
             )
         )
         start = i
         counter += 1
-        if counter == n_patches:
+        if counter == n_patches_time:
             recon[indx, ...] = np.hstack(batch)
             indx += 1
             counter, batch = 0, []
@@ -156,14 +163,14 @@ def reconstruct_latent_patches(images: np.ndarray, original_size: int, patch_siz
     Reconstructs patches into images. Assumes that the images are square and single channel.
     """
     n_patches = original_size // patch_size
-    recon = np.empty([images.shape[0] // n_patches ** 2, n_patches ** 2])
+    recon = np.empty([images.shape[0] // n_patches**2, n_patches**2])
 
-    start, end = 0, n_patches ** 2
+    start, end = 0, n_patches**2
 
-    for j, _ in enumerate(range(0, images.shape[0], n_patches ** 2)):
+    for j, _ in enumerate(range(0, images.shape[0], n_patches**2)):
         recon[j, ...] = images[start:end, ...]
         start = end
-        end += n_patches ** 2
+        end += n_patches**2
     return recon
 
 
@@ -223,7 +230,9 @@ def load_tabascal_data(data_path=get_data_dir(), num_sat: int = 2, num_ground: i
 
 
 def load_chiles_data(data_path=get_data_dir(), patch_size=32):
-    filepath = os.path.join(data_path, "13B-266.sb32005698.eb32212913.57536.86322461806.npy")
+    filepath = os.path.join(
+        data_path, "13B-266.sb32005698.eb32212913.57536.86322461806.npy"
+    )
     print(f"Loading Chiles data from {filepath}")
     # Loaded in Stokes, Channels, nAntenna, nTime
     data = np.load(filepath)
@@ -237,15 +246,21 @@ def load_chiles_data(data_path=get_data_dir(), patch_size=32):
     time_pad = patch_size - data.shape[2] % patch_size
     data = np.pad(data, ((0, 0), (0, channel_pad), (0, time_pad), (0, 0)))
     fake_flags = np.zeros_like(data, dtype=bool)
-    train_x, test_x = data, fake_flags
-    _, _, train_y, test_y = sklearn.model_selection.train_test_split(
+    train_x, train_y = data, fake_flags
+    _, test_x, _, test_y = sklearn.model_selection.train_test_split(
         data, fake_flags, test_size=0.2
     )
-    return train_x.astype("float32"), train_y, test_x.astype("float32"), test_y, []
+    return (
+        train_x.astype("float32"),
+        train_y,
+        test_x.astype("float32"),
+        test_y,
+        [channel_pad, time_pad],
+    )
 
 
 def load_data(
-        config_vals, data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
+    config_vals, data_path=get_data_dir(), num_sat: int = 2, num_ground: int = 3
 ):
     """
     Loads data from pickle files.
@@ -266,17 +281,17 @@ def load_data(
 
 
 def process_into_dataset(
-        x_data,
-        y_data,
-        batch_size,
-        mode,
-        shuffle=True,
-        limit=None,
-        threshold=None,
-        patch_size=None,
-        stride=None,
-        filter_rfi_patches=False,
-        get_orig=False,
+    x_data,
+    y_data,
+    batch_size,
+    mode,
+    shuffle=True,
+    limit=None,
+    threshold=None,
+    patch_size=None,
+    stride=None,
+    filter_rfi_patches=False,
+    get_orig=False,
 ):
     """
     Applies pre-processing steps to the data and returns a torch DataLoader.

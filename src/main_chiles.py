@@ -6,7 +6,7 @@ from torchsummary import summary
 
 from config import get_output_dir, DEVICE, get_dataset_params
 from data import load_data, process_into_dataset, reconstruct_patches
-from evaluation import infer, get_error_dataset, nln, nln_errors, get_dists
+from evaluation import infer, nln, nln_errors, get_dists_rectangular
 from main import train_model
 from models import AutoEncoder, Discriminator
 from plotting import plot_loss_history
@@ -14,17 +14,19 @@ from utils import generate_model_name, save_json
 
 
 def evaluate_chiles(
-        model,
-        train_dataset,
-        paddings,
-        neighbours,
-        latent_dimension,
-        original_size,
-        patch_size,
-        model_name,
-        model_type,
-        anomaly_type,
-        dataset,
+    model,
+    train_dataset,
+    paddings,
+    neighbours,
+    latent_dimension,
+    original_num_images,
+    original_channels,
+    original_time_length,
+    patch_size,
+    model_name,
+    model_type,
+    anomaly_type,
+    dataset,
 ):
     # Run the test dataset through the nln process
     z_train = infer(model.encoder, train_dataset, latent_dimension, True)
@@ -36,11 +38,31 @@ def evaluate_chiles(
     )
     del x_hat_train
     del train_dataset
-    nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+    nln_error_recon = reconstruct_patches(
+        nln_error,
+        original_num_images,
+        original_channels,
+        original_time_length,
+        patch_size,
+    )
+    dists_recon = get_dists_rectangular(
+        neighbours_dist,
+        original_num_images,
+        original_channels,
+        original_time_length,
+        patch_size,
+    )
+    combined_recon = np.clip(
+        nln_error_recon, nln_error_recon.mean() + nln_error_recon.std() * 5, 1.0
+    ) * np.array([d > np.percentile(d, 66) for d in dists_recon])
+    combined_recon = np.nan_to_num(combined_recon)
+    combined_recon[combined_recon > 0.0] = 1.0
+    # Remove padding
+    combined_recon = combined_recon[:, :, : -paddings[1], : -paddings[0]]
     # Save the models output as flags
     np.save(
         f"{get_output_dir()}/{model_type}/{anomaly_type}/{model_name}/flags.npy",
-        nln_error_recon,
+        combined_recon,
     )
 
 
@@ -139,7 +161,9 @@ def main(config_vals: dict):
         paddings,
         config_vals.get("neighbours"),
         config_vals.get("latent_dimension"),
+        train_x.shape[0],
         train_x[0].shape[0],
+        train_x[0].shape[1],
         config_vals.get("patch_size"),
         config_vals["model_name"],
         config_vals["model_type"],

@@ -279,6 +279,29 @@ def get_dists(neighbours_dist, original_size: int, patch_size: int = None):
     return dists
 
 
+def get_dists_rectangular(
+    neighbours_dist,
+    num_images: int,
+    original_num_channels: int,
+    original_num_timesteps: int,
+    patch_size: int = None,
+):
+    dists = np.mean(neighbours_dist, axis=tuple(range(1, neighbours_dist.ndim)))
+    if patch_size is not None:
+        dists = np.array([[d] * patch_size**2 for i, d in enumerate(dists)]).reshape(
+            len(dists), patch_size, patch_size
+        )
+        dists_recon = reconstruct_patches(
+            np.expand_dims(dists, axis=1),
+            num_images,
+            original_num_channels,
+            original_num_timesteps,
+            patch_size,
+        )
+        return dists_recon
+    return dists
+
+
 def calculate_metrics(
     model: AutoEncoder,
     test_masks_original: np.ndarray,
@@ -298,7 +321,11 @@ def calculate_metrics(
     The function for calculating metrics for a model trial.
     """
     test_masks_original_reconstructed = reconstruct_patches(
-        test_masks_original, original_size, patch_size
+        test_masks_original,
+        test_masks_original.shape[0],
+        original_size,
+        original_size,
+        patch_size,
     )
     z_train = infer(model.encoder, train_dataset, latent_dimension, True)
     z_query = infer(model.encoder, test_dataset, latent_dimension, True)
@@ -308,7 +335,9 @@ def calculate_metrics(
 
     error = get_error_dataset(test_dataset, x_hat, patch_size)
 
-    error_recon = reconstruct_patches(error, original_size, patch_size)
+    error_recon = reconstruct_patches(
+        error, test_masks_original.shape[0], original_size, original_size, patch_size
+    )
 
     ae_metrics = _calculate_metrics(test_masks_original_reconstructed, error_recon)
     neighbours_dist, neighbours_idx, neighbour_mask = nln(z_train, z_query, neighbours)
@@ -321,7 +350,13 @@ def calculate_metrics(
 
     if patch_size:
         if nln_error.ndim == 4:
-            nln_error_recon = reconstruct_patches(nln_error, original_size, patch_size)
+            nln_error_recon = reconstruct_patches(
+                nln_error,
+                test_masks_original.shape[0],
+                original_size,
+                original_size,
+                patch_size,
+            )
         else:
             nln_error_recon = reconstruct_latent_patches(
                 nln_error, original_size, patch_size
@@ -354,22 +389,38 @@ def calculate_metrics(
     combined_recon = np.nan_to_num(combined_recon)
     try:
         combined_metrics = _calculate_metrics(test_masks_original, combined_recon)
-        dist_metrics = _calculate_metrics(test_masks_original_reconstructed, dists_recon)
+        dist_metrics = _calculate_metrics(
+            test_masks_original_reconstructed, dists_recon
+        )
     except ValueError:
         combined_metrics = {}
         dist_metrics = {}
 
     if not evaluate_run:
         test_images_recon = reconstruct_patches(
-            test_dataset.dataset[:][0].cpu().detach().numpy(), original_size, patch_size
+            test_dataset.dataset[:][0].cpu().detach().numpy(),
+            test_dataset.dataset[:][0].shape[0],
+            original_size,
+            original_size,
+            patch_size,
         )
         test_masks_reconstructed = reconstruct_patches(
-            test_dataset.dataset[:][1].cpu().detach().numpy(), original_size, patch_size
+            test_dataset.dataset[:][1].cpu().detach().numpy(),
+            test_dataset.dataset[:][1].shape[0],
+            original_size,
+            original_size,
+            patch_size,
         )
         smoothed_x_hat = np.ones_like(x_hat)
         for i in range(len(x_hat)):
             smoothed_x_hat[i, 0, :, :] = x_hat[i, 0, :, :]
-        x_hat_recon = reconstruct_patches(smoothed_x_hat, original_size, patch_size)
+        x_hat_recon = reconstruct_patches(
+            smoothed_x_hat,
+            test_dataset.dataset[:][0].shape[0],
+            original_size,
+            original_size,
+            patch_size,
+        )
         plot_final_images(
             ae_metrics,
             neighbours,

@@ -228,7 +228,11 @@ def evaluate_snn(
     Evaluates an SNN model.
     """
     test_masks_original_reconstructed = reconstruct_patches(
-        test_masks_original, original_size, patch_size
+        test_masks_original,
+        test_masks_original.shape[0],
+        original_size,
+        original_size,
+        patch_size,
     )
     x_hat = infer_snn(
         model, test_dataset, runtime=runtime, batch_limit=-1, n_limit=average_n
@@ -237,7 +241,11 @@ def evaluate_snn(
     if patch_size:
         if snln_error.ndim == 4:
             snln_error_recon = reconstruct_patches(
-                snln_error, original_size, patch_size
+                snln_error,
+                test_masks_original.shape[0],
+                original_size,
+                original_size,
+                patch_size,
             )
         else:
             snln_error_recon = reconstruct_latent_patches(
